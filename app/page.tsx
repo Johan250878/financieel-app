@@ -1,3 +1,4 @@
+"use client";
 import { supabase } from '../lib/supabase'
 import TransactionForm from './TransactionForm'
 import DeleteButton from './DeleteButton'
