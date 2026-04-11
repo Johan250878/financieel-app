@@ -1,76 +1,85 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { supabase } from "@/lib/supabase";
 import { useRouter } from "next/navigation";
 
-export default function LoginPage() {
+export default function Home() {
   const router = useRouter();
 
-  const [email, setEmail] = useState("");
-  const [password, setPassword] = useState("");
-  const [isLogin, setIsLogin] = useState(true);
+  const [user, setUser] = useState<any>(null);
+  const [transactions, setTransactions] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
 
-  async function handleSubmit(e: React.FormEvent) {
-    e.preventDefault();
-
-    if (isLogin) {
-      const { error } = await supabase.auth.signInWithPassword({
-        email,
-        password,
-      });
-
-      if (!error) {
-        router.push("/");
+  // 🔐 Check login
+  useEffect(() => {
+    supabase.auth.getUser().then(({ data }) => {
+      if (!data.user) {
+        router.push("/login");
       } else {
-        alert(error.message);
+        setUser(data.user);
+        fetchTransactions(data.user.id);
       }
-    } else {
-      const { error } = await supabase.auth.signUp({
-        email,
-        password,
-      });
+    });
+  }, []);
 
-      if (!error) {
-        alert("Account aangemaakt!");
-        setIsLogin(true);
-      } else {
-        alert(error.message);
-      }
+  // 📥 Haal transacties op
+  async function fetchTransactions(userId: string) {
+    const { data, error } = await supabase
+      .from("transactions")
+      .select("*")
+      .eq("user_id", userId)
+      .order("created_at", { ascending: false });
+
+    if (!error && data) {
+      setTransactions(data);
     }
+
+    setLoading(false);
   }
 
+  // ❌ Delete
+  async function handleDelete(id: string) {
+    await supabase.from("transactions").delete().eq("id", id);
+
+    // refresh
+    setTransactions((prev) => prev.filter((t) => t.id !== id));
+  }
+
+  if (loading) return <p style={{ padding: 40 }}>Laden...</p>;
+
   return (
-    <div style={{ padding: 40 }}>
-      <h1>{isLogin ? "Inloggen" : "Account maken"}</h1>
+    <main style={{ padding: 40 }}>
+      <h1>Financieel overzicht</h1>
 
-      <form onSubmit={handleSubmit}>
-        <input
-          type="email"
-          placeholder="email"
-          value={email}
-          onChange={(e) => setEmail(e.target.value)}
-        />
-        <br /><br />
+      <p>Ingelogd als: {user?.email}</p>
 
-        <input
-          type="password"
-          placeholder="wachtwoord"
-          value={password}
-          onChange={(e) => setPassword(e.target.value)}
-        />
-        <br /><br />
-
-        <button type="submit">
-          {isLogin ? "Inloggen" : "Registreren"}
-        </button>
-      </form>
-
-      <br />
-
-      <button onClick={() => setIsLogin(!isLogin)}>
-        {isLogin ? "Maak account" : "Ga naar login"}
+      <button
+        onClick={async () => {
+          await supabase.auth.signOut();
+          router.push("/login");
+        }}
+      >
+        Uitloggen
       </button>
-    </div>
+
+      <hr style={{ margin: "20px 0" }} />
+
+      <h2>Transacties</h2>
+
+      {transactions.length === 0 && <p>Geen transacties</p>}
+
+      {transactions.map((t) => (
+        <div key={t.id} style={{ marginBottom: 10 }}>
+          {t.description} - €{t.amount}
+          <button
+            onClick={() => handleDelete(t.id)}
+            style={{ marginLeft: 10 }}
+          >
+            Verwijder
+          </button>
+        </div>
+      ))}
+    </main>
   );
 }
