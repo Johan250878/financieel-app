@@ -1,140 +1,149 @@
 "use client";
-import { supabase } from '../lib/supabase'
-import TransactionForm from './TransactionForm'
-import DeleteButton from './DeleteButton'
 
-export default async function Home() {
-  const { data, error } = await supabase
-    .from('transactions')
-    .select('*')
-    .order('transaction_date', { ascending: false })
+import { useEffect, useState } from "react";
+import { supabase } from "@/lib/supabase";
+import { useRouter } from "next/navigation";
 
-  if (error) {
-    return (
-      <main style={{ padding: '2rem', fontFamily: 'Arial, sans-serif' }}>
-        <h1>Financieel overzicht</h1>
-        <p>Fout: {error.message}</p>
-      </main>
-    )
+type Transaction = {
+  id: string;
+  description: string;
+  amount: number;
+  transaction_date: string;
+  type: "income" | "expense";
+  user_id: string;
+};
+
+export default function Home() {
+  const router = useRouter();
+
+  const [user, setUser] = useState<any>(null);
+  const [transactions, setTransactions] = useState<Transaction[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [errorMessage, setErrorMessage] = useState("");
+
+  useEffect(() => {
+    let mounted = true;
+
+    async function init() {
+      const {
+        data: { session },
+        error,
+      } = await supabase.auth.getSession();
+
+      if (!mounted) return;
+
+      if (error) {
+        setErrorMessage(error.message);
+        setLoading(false);
+        return;
+      }
+
+      if (!session?.user) {
+        router.push("/login");
+        return;
+      }
+
+      setUser(session.user);
+      await fetchTransactions(session.user.id);
+    }
+
+    const {
+      data: { subscription },
+    } = supabase.auth.onAuthStateChange(async (_event, session) => {
+      if (!mounted) return;
+
+      if (!session?.user) {
+        setUser(null);
+        setTransactions([]);
+        setLoading(false);
+        router.push("/login");
+        return;
+      }
+
+      setUser(session.user);
+      await fetchTransactions(session.user.id);
+    });
+
+    init();
+
+    return () => {
+      mounted = false;
+      subscription.unsubscribe();
+    };
+  }, [router]);
+
+  async function fetchTransactions(userId: string) {
+    setLoading(true);
+
+    const { data, error } = await supabase
+      .from("transactions")
+      .select("*")
+      .eq("user_id", userId)
+      .order("transaction_date", { ascending: false });
+
+    if (error) {
+      setErrorMessage(error.message);
+      setTransactions([]);
+    } else {
+      setErrorMessage("");
+      setTransactions((data as Transaction[]) ?? []);
+    }
+
+    setLoading(false);
   }
 
-  const transactions = data ?? []
+  async function handleDelete(id: string) {
+    const { error } = await supabase.from("transactions").delete().eq("id", id);
 
-  const totalIncome = transactions
-    .filter((item) => item.type === 'income')
-    .reduce((sum, item) => sum + Number(item.amount), 0)
+    if (error) {
+      alert(error.message);
+      return;
+    }
 
-  const totalExpense = transactions
-    .filter((item) => item.type === 'expense')
-    .reduce((sum, item) => sum + Number(item.amount), 0)
+    setTransactions((prev) => prev.filter((t) => t.id !== id));
+  }
 
-  const balance = totalIncome - totalExpense
+  async function handleLogout() {
+    await supabase.auth.signOut();
+    router.push("/login");
+  }
+
+  if (loading) {
+    return <main style={{ padding: 40 }}>Laden...</main>;
+  }
+
+  if (errorMessage) {
+    return (
+      <main style={{ padding: 40 }}>
+        <h1>Financieel overzicht</h1>
+        <p style={{ color: "red" }}>Fout: {errorMessage}</p>
+      </main>
+    );
+  }
 
   return (
-    <main
-      style={{
-        padding: '2rem',
-        fontFamily: 'Arial, sans-serif',
-        maxWidth: '900px',
-        margin: '0 auto',
-      }}
-    >
-      <h1 style={{ marginBottom: '2rem' }}>Financieel overzicht</h1>
+    <main style={{ padding: 40 }}>
+      <h1>Financieel overzicht</h1>
 
-      {/* Formulier */}
-      <TransactionForm />
+      <p>Ingelogd als: {user?.email}</p>
+      <button onClick={handleLogout}>Uitloggen</button>
 
-      {/* Overzicht */}
-      <div
-        style={{
-          display: 'flex',
-          gap: '1rem',
-          marginBottom: '2rem',
-          flexWrap: 'wrap',
-        }}
-      >
-        <div
-          style={{
-            padding: '1rem',
-            border: '1px solid #ddd',
-            borderRadius: '12px',
-            minWidth: '200px',
-          }}
-        >
-          <h2>Inkomsten</h2>
-          <p style={{ fontSize: '1.5rem', fontWeight: 'bold' }}>
-            € {totalIncome.toFixed(2)}
-          </p>
+      <hr style={{ margin: "20px 0" }} />
+
+      <h2>Transacties</h2>
+
+      {transactions.length === 0 && <p>Geen transacties</p>}
+
+      {transactions.map((t) => (
+        <div key={t.id} style={{ marginBottom: 12 }}>
+          <strong>{t.description}</strong> - €{Number(t.amount).toFixed(2)}
+          <div>{t.transaction_date}</div>
+          <div>{t.type === "income" ? "Inkomst" : "Uitgave"}</div>
+          <button onClick={() => handleDelete(t.id)} style={{ marginTop: 6 }}>
+            Verwijder
+          </button>
         </div>
-
-        <div
-          style={{
-            padding: '1rem',
-            border: '1px solid #ddd',
-            borderRadius: '12px',
-            minWidth: '200px',
-          }}
-        >
-          <h2>Uitgaven</h2>
-          <p style={{ fontSize: '1.5rem', fontWeight: 'bold' }}>
-            € {totalExpense.toFixed(2)}
-          </p>
-        </div>
-
-        <div
-          style={{
-            padding: '1rem',
-            border: '1px solid #ddd',
-            borderRadius: '12px',
-            minWidth: '200px',
-          }}
-        >
-          <h2>Saldo</h2>
-          <p style={{ fontSize: '1.5rem', fontWeight: 'bold' }}>
-            € {balance.toFixed(2)}
-          </p>
-        </div>
-      </div>
-
-      {/* Lijst */}
-      <h2 style={{ marginBottom: '1rem' }}>Transacties</h2>
-
-      <div style={{ display: 'grid', gap: '1rem' }}>
-        {transactions.map((item) => (
-          <div
-            key={item.id}
-            style={{
-              border: '1px solid #ddd',
-              borderRadius: '12px',
-              padding: '1rem',
-              display: 'flex',
-              justifyContent: 'space-between',
-              alignItems: 'center',
-            }}
-          >
-            <div>
-              <p style={{ margin: 0, fontWeight: 'bold' }}>
-                {item.description}
-              </p>
-              <p style={{ margin: '0.25rem 0 0 0', color: '#666' }}>
-                {item.transaction_date}
-              </p>
-              <p style={{ margin: '0.25rem 0 0 0', color: '#666' }}>
-                {item.type === 'income' ? 'Inkomst' : 'Uitgave'}
-              </p>
-            </div>
-
-            <div style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
-              <div style={{ fontWeight: 'bold', fontSize: '1.1rem' }}>
-                {item.type === 'income' ? '+' : '-'} €{' '}
-                {Number(item.amount).toFixed(2)}
-              </div>
-
-              <DeleteButton id={item.id} />
-            </div>
-          </div>
-        ))}
-      </div>
+      ))}
     </main>
-  )
+  );
 }

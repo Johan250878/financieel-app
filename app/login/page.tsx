@@ -1,102 +1,109 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import { supabase } from "@/lib/supabase";
 import { useRouter } from "next/navigation";
 
-export default function Home() {
+export default function LoginPage() {
   const router = useRouter();
 
-  const [user, setUser] = useState<any>(null);
-  const [transactions, setTransactions] = useState<any[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [errorMessage, setErrorMessage] = useState("");
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
+  const [isLogin, setIsLogin] = useState(true);
+  const [loading, setLoading] = useState(false);
 
-  useEffect(() => {
-    async function loadPage() {
-      const {
-        data: { session },
-      } = await supabase.auth.getSession();
+  async function handleSubmit(e: React.FormEvent) {
+    e.preventDefault();
+    setLoading(true);
 
-      if (!session?.user) {
-        router.push("/login");
+    if (isLogin) {
+      const { error } = await supabase.auth.signInWithPassword({
+        email,
+        password,
+      });
+
+      setLoading(false);
+
+      if (error) {
+        alert(error.message);
         return;
       }
 
-      setUser(session.user);
-
-      const { data, error } = await supabase
-        .from("transactions")
-        .select("*")
-        .eq("user_id", session.user.id)
-        .order("transaction_date", { ascending: false });
-
-      if (error) {
-        setErrorMessage(error.message);
-      } else {
-        setTransactions(data ?? []);
-      }
+      router.push("/");
+      router.refresh();
+    } else {
+      const { error } = await supabase.auth.signUp({
+        email,
+        password,
+      });
 
       setLoading(false);
+
+      if (error) {
+        alert(error.message);
+        return;
+      }
+
+      alert("Account aangemaakt. Log nu in.");
+      setIsLogin(true);
+    }
+  }
+
+  async function handleResetPassword() {
+    if (!email) {
+      alert("Vul eerst je e-mail in.");
+      return;
     }
 
-    loadPage();
-  }, [router]);
-
-  async function handleDelete(id: string) {
-    const { error } = await supabase.from("transactions").delete().eq("id", id);
+    const { error } = await supabase.auth.resetPasswordForEmail(email, {
+      redirectTo: "https://financieel-app.vercel.app/reset-password",
+    });
 
     if (error) {
       alert(error.message);
       return;
     }
 
-    setTransactions((prev) => prev.filter((t) => t.id !== id));
-  }
-
-  async function handleLogout() {
-    await supabase.auth.signOut();
-    router.push("/login");
-  }
-
-  if (loading) {
-    return <p style={{ padding: 40 }}>Laden...</p>;
-  }
-
-  if (errorMessage) {
-    return (
-      <main style={{ padding: 40 }}>
-        <h1>Financieel overzicht</h1>
-        <p style={{ color: "red" }}>Fout: {errorMessage}</p>
-      </main>
-    );
+    alert("Check je mail voor de resetlink.");
   }
 
   return (
-    <main style={{ padding: 40 }}>
-      <h1>Financieel overzicht</h1>
+    <main style={{ padding: 40, maxWidth: 400 }}>
+      <h1>{isLogin ? "Inloggen" : "Account maken"}</h1>
 
-      <p>Ingelogd als: {user?.email}</p>
+      <form onSubmit={handleSubmit}>
+        <input
+          type="email"
+          placeholder="E-mail"
+          value={email}
+          onChange={(e) => setEmail(e.target.value)}
+          style={{ width: "100%", padding: 10, marginBottom: 12 }}
+        />
 
-      <button onClick={handleLogout}>Uitloggen</button>
+        <input
+          type="password"
+          placeholder="Wachtwoord"
+          value={password}
+          onChange={(e) => setPassword(e.target.value)}
+          style={{ width: "100%", padding: 10, marginBottom: 12 }}
+        />
 
-      <hr style={{ margin: "20px 0" }} />
+        <button type="submit" disabled={loading} style={{ padding: 10 }}>
+          {loading ? "Bezig..." : isLogin ? "Inloggen" : "Registreren"}
+        </button>
+      </form>
 
-      <h2>Transacties</h2>
-
-      {transactions.length === 0 && <p>Geen transacties</p>}
-
-      {transactions.map((t) => (
-        <div key={t.id} style={{ marginBottom: 10 }}>
-          {t.description} - €{t.amount}
-          <button
-            onClick={() => handleDelete(t.id)}
-            style={{ marginLeft: 10 }}
-          >
-            Verwijder
-          </button>
+      {isLogin && (
+        <div style={{ marginTop: 16 }}>
+          <button onClick={handleResetPassword}>Wachtwoord vergeten?</button>
         </div>
-      ))}
+      )}
+
+      <div style={{ marginTop: 16 }}>
+        <button onClick={() => setIsLogin(!isLogin)}>
+          {isLogin ? "Maak account" : "Ga naar login"}
+        </button>
+      </div>
     </main>
   );
 }
