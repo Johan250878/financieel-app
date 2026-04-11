@@ -14,25 +14,21 @@ export default function Home() {
 
   useEffect(() => {
     async function loadPage() {
-      const { data: userData, error: userError } = await supabase.auth.getUser();
+      const {
+        data: { session },
+      } = await supabase.auth.getSession();
 
-      if (userError) {
-        setErrorMessage(userError.message);
-        setLoading(false);
-        return;
-      }
-
-      if (!userData.user) {
+      if (!session?.user) {
         router.push("/login");
         return;
       }
 
-      setUser(userData.user);
+      setUser(session.user);
 
       const { data, error } = await supabase
         .from("transactions")
         .select("*")
-        .eq("user_id", userData.user.id)
+        .eq("user_id", session.user.id)
         .order("transaction_date", { ascending: false });
 
       if (error) {
