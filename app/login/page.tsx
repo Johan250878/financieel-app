@@ -10,43 +10,71 @@ export default function Home() {
   const [user, setUser] = useState<any>(null);
   const [transactions, setTransactions] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
+  const [errorMessage, setErrorMessage] = useState("");
 
-  // 🔐 Check login
   useEffect(() => {
-    supabase.auth.getUser().then(({ data }) => {
-      if (!data.user) {
-        router.push("/login");
-      } else {
-        setUser(data.user);
-        fetchTransactions(data.user.id);
+    async function loadPage() {
+      const { data: userData, error: userError } = await supabase.auth.getUser();
+
+      if (userError) {
+        setErrorMessage(userError.message);
+        setLoading(false);
+        return;
       }
-    });
-  }, []);
 
-  // 📥 Haal transacties op
-  async function fetchTransactions(userId: string) {
-    const { data, error } = await supabase
-      .from("transactions")
-      .select("*")
-      .eq("user_id", userId)
-      .order("created_at", { ascending: false });
+      if (!userData.user) {
+        router.push("/login");
+        return;
+      }
 
-    if (!error && data) {
-      setTransactions(data);
+      setUser(userData.user);
+
+      const { data, error } = await supabase
+        .from("transactions")
+        .select("*")
+        .eq("user_id", userData.user.id)
+        .order("transaction_date", { ascending: false });
+
+      if (error) {
+        setErrorMessage(error.message);
+      } else {
+        setTransactions(data ?? []);
+      }
+
+      setLoading(false);
     }
 
-    setLoading(false);
-  }
+    loadPage();
+  }, [router]);
 
-  // ❌ Delete
   async function handleDelete(id: string) {
-    await supabase.from("transactions").delete().eq("id", id);
+    const { error } = await supabase.from("transactions").delete().eq("id", id);
 
-    // refresh
+    if (error) {
+      alert(error.message);
+      return;
+    }
+
     setTransactions((prev) => prev.filter((t) => t.id !== id));
   }
 
-  if (loading) return <p style={{ padding: 40 }}>Laden...</p>;
+  async function handleLogout() {
+    await supabase.auth.signOut();
+    router.push("/login");
+  }
+
+  if (loading) {
+    return <p style={{ padding: 40 }}>Laden...</p>;
+  }
+
+  if (errorMessage) {
+    return (
+      <main style={{ padding: 40 }}>
+        <h1>Financieel overzicht</h1>
+        <p style={{ color: "red" }}>Fout: {errorMessage}</p>
+      </main>
+    );
+  }
 
   return (
     <main style={{ padding: 40 }}>
@@ -54,14 +82,7 @@ export default function Home() {
 
       <p>Ingelogd als: {user?.email}</p>
 
-      <button
-        onClick={async () => {
-          await supabase.auth.signOut();
-          router.push("/login");
-        }}
-      >
-        Uitloggen
-      </button>
+      <button onClick={handleLogout}>Uitloggen</button>
 
       <hr style={{ margin: "20px 0" }} />
 
