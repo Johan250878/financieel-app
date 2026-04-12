@@ -6,7 +6,6 @@ import { useRouter } from "next/navigation";
 
 export default function ResetPasswordPage() {
   const router = useRouter();
-
   const [password, setPassword] = useState("");
   const [loading, setLoading] = useState(false);
 
@@ -15,7 +14,7 @@ export default function ResetPasswordPage() {
     setLoading(true);
 
     const { error } = await supabase.auth.updateUser({
-      password,
+      password: password,
     });
 
     setLoading(false);
