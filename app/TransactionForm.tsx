@@ -21,6 +21,17 @@ export default function TransactionForm() {
     setLoading(true)
     setMessage('')
 
+    const {
+      data: { session },
+      error: sessionError,
+    } = await supabase.auth.getSession()
+
+    if (sessionError || !session?.user) {
+      setMessage('Fout: je bent niet ingelogd')
+      setLoading(false)
+      return
+    }
+
     const { error } = await supabase.from('transactions').insert([
       {
         description,
@@ -28,7 +39,8 @@ export default function TransactionForm() {
         type,
         transaction_date: transactionDate,
         household_id: 'a604e10c-4628-4e97-9b64-038be46e0fdd',
-        created_by: '1d601a47-55dc-4537-8de3-195465267196',
+        created_by: session.user.id,
+        user_id: session.user.id,
         category_id: 'acec54c1-1143-426e-97e4-baccf2e62da9',
       },
     ])
@@ -129,11 +141,7 @@ export default function TransactionForm() {
         {loading ? 'Opslaan...' : 'Transactie toevoegen'}
       </button>
 
-      {message && (
-        <p style={{ margin: 0 }}>
-          {message}
-        </p>
-      )}
+      {message && <p style={{ margin: 0 }}>{message}</p>}
     </form>
   )
 }
