@@ -21,7 +21,16 @@ export default function Home() {
   const [transactions, setTransactions] = useState<Transaction[]>([]);
   const [loading, setLoading] = useState(true);
   const [errorMessage, setErrorMessage] = useState("");
+const totalIncome = transactions
+  .filter((t) => t.type === "income")
+  .reduce((sum, t) => sum + Number(t.amount), 0);
 
+const totalExpense = transactions
+  .filter((t) => t.type === "expense")
+  .reduce((sum, t) => sum + Number(t.amount), 0);
+
+const balance = totalIncome - totalExpense;
+  
   useEffect(() => {
     async function loadPage() {
       const {
@@ -99,7 +108,11 @@ export default function Home() {
       <hr style={{ margin: "20px 0" }} />
 
       <TransactionForm />
-
+<div style={{ marginBottom: 20 }}>
+  <p>Inkomsten: € {totalIncome.toFixed(2)}</p>
+  <p>Uitgaven: € {totalExpense.toFixed(2)}</p>
+  <p><strong>Saldo: € {balance.toFixed(2)}</strong></p>
+</div>
       <h2>Transacties</h2>
 
       {transactions.length === 0 && <p>Geen transacties</p>}
