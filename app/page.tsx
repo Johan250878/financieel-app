@@ -12,6 +12,12 @@ type Transaction = {
   transaction_date: string;
   type: "income" | "expense";
   user_id: string;
+  account_id: string | null;
+};
+
+type Account = {
+  id: string;
+  name: string;
 };
 
 export default function Home() {
@@ -19,18 +25,10 @@ export default function Home() {
 
   const [user, setUser] = useState<any>(null);
   const [transactions, setTransactions] = useState<Transaction[]>([]);
+  const [accounts, setAccounts] = useState<Account[]>([]);
   const [loading, setLoading] = useState(true);
   const [errorMessage, setErrorMessage] = useState("");
-const totalIncome = transactions
-  .filter((t) => t.type === "income")
-  .reduce((sum, t) => sum + Number(t.amount), 0);
 
-const totalExpense = transactions
-  .filter((t) => t.type === "expense")
-  .reduce((sum, t) => sum + Number(t.amount), 0);
-
-const balance = totalIncome - totalExpense;
-  
   useEffect(() => {
     async function loadPage() {
       const {
@@ -51,7 +49,20 @@ const balance = totalIncome - totalExpense;
 
       setUser(session.user);
 
-      const { data, error: txError } = await supabase
+      const { data: accountsData, error: accountsError } = await supabase
+        .from("accounts")
+        .select("id, name")
+        .order("name", { ascending: true });
+
+      if (accountsError) {
+        setErrorMessage(accountsError.message);
+        setLoading(false);
+        return;
+      }
+
+      setAccounts((accountsData as Account[]) ?? []);
+
+      const { data: txData, error: txError } = await supabase
         .from("transactions")
         .select("*")
         .eq("user_id", session.user.id)
@@ -60,7 +71,7 @@ const balance = totalIncome - totalExpense;
       if (txError) {
         setErrorMessage(txError.message);
       } else {
-        setTransactions((data as Transaction[]) ?? []);
+        setTransactions((txData as Transaction[]) ?? []);
       }
 
       setLoading(false);
@@ -85,6 +96,18 @@ const balance = totalIncome - totalExpense;
     router.push("/login");
   }
 
+  function getAccountBalance(accountId: string) {
+    const income = transactions
+      .filter((t) => t.account_id === accountId && t.type === "income")
+      .reduce((sum, t) => sum + Number(t.amount), 0);
+
+    const expense = transactions
+      .filter((t) => t.account_id === accountId && t.type === "expense")
+      .reduce((sum, t) => sum + Number(t.amount), 0);
+
+    return income - expense;
+  }
+
   if (loading) {
     return <main style={{ padding: 40 }}>Laden...</main>;
   }
@@ -107,26 +130,46 @@ const balance = totalIncome - totalExpense;
 
       <hr style={{ margin: "20px 0" }} />
 
+      <h2>Saldo per rekening</h2>
+      <div style={{ marginBottom: "2rem" }}>
+        {accounts.map((account) => (
+          <div
+            key={account.id}
+            style={{
+              border: "1px solid #ddd",
+              borderRadius: "12px",
+              padding: "1rem",
+              marginBottom: "1rem",
+            }}
+          >
+            <strong>{account.name}</strong>
+            <div>€ {getAccountBalance(account.id).toFixed(2)}</div>
+          </div>
+        ))}
+      </div>
+
       <TransactionForm />
-<div style={{ marginBottom: 20 }}>
-  <p>Inkomsten: € {totalIncome.toFixed(2)}</p>
-  <p>Uitgaven: € {totalExpense.toFixed(2)}</p>
-  <p><strong>Saldo: € {balance.toFixed(2)}</strong></p>
-</div>
+
       <h2>Transacties</h2>
 
       {transactions.length === 0 && <p>Geen transacties</p>}
 
-      {transactions.map((t) => (
-        <div key={t.id} style={{ marginBottom: 12 }}>
-          <strong>{t.description}</strong> - €{Number(t.amount).toFixed(2)}
-          <div>{t.transaction_date}</div>
-          <div>{t.type === "income" ? "Inkomst" : "Uitgave"}</div>
-          <button onClick={() => handleDelete(t.id)} style={{ marginTop: 6 }}>
-            Verwijder
-          </button>
-        </div>
-      ))}
+      {transactions.map((t) => {
+        const accountName =
+          accounts.find((a) => a.id === t.account_id)?.name || "Onbekende rekening";
+
+        return (
+          <div key={t.id} style={{ marginBottom: 12 }}>
+            <strong>{t.description}</strong> - €{Number(t.amount).toFixed(2)}
+            <div>{t.transaction_date}</div>
+            <div>{t.type === "income" ? "Inkomst" : "Uitgave"}</div>
+            <div>Rekening: {accountName}</div>
+            <button onClick={() => handleDelete(t.id)} style={{ marginTop: 6 }}>
+              Verwijder
+            </button>
+          </div>
+        );
+      })}
     </main>
   );
 }
