@@ -1,8 +1,13 @@
 'use client'
 
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { supabase } from '../lib/supabase'
+
+type Account = {
+  id: string
+  name: string
+}
 
 export default function TransactionForm() {
   const router = useRouter()
@@ -13,8 +18,30 @@ export default function TransactionForm() {
   const [transactionDate, setTransactionDate] = useState(
     new Date().toISOString().split('T')[0]
   )
+  const [accountId, setAccountId] = useState('')
+  const [accounts, setAccounts] = useState<Account[]>([])
   const [loading, setLoading] = useState(false)
   const [message, setMessage] = useState('')
+
+  useEffect(() => {
+    async function loadAccounts() {
+      const { data, error } = await supabase
+        .from('accounts')
+        .select('id, name')
+        .order('name', { ascending: true })
+
+      if (error) {
+        setMessage(`Fout bij laden rekeningen: ${error.message}`)
+        return
+      }
+
+      if (data) {
+        setAccounts(data)
+      }
+    }
+
+    loadAccounts()
+  }, [])
 
   async function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault()
@@ -32,6 +59,12 @@ export default function TransactionForm() {
       return
     }
 
+    if (!accountId) {
+      setMessage('Kies eerst een rekening')
+      setLoading(false)
+      return
+    }
+
     const { error } = await supabase.from('transactions').insert([
       {
         description,
@@ -41,6 +74,7 @@ export default function TransactionForm() {
         household_id: 'a604e10c-4628-4e97-9b64-038be46e0fdd',
         created_by: session.user.id,
         user_id: session.user.id,
+        account_id: accountId,
         category_id: 'acec54c1-1143-426e-97e4-baccf2e62da9',
       },
     ])
@@ -55,6 +89,7 @@ export default function TransactionForm() {
     setAmount('')
     setType('expense')
     setTransactionDate(new Date().toISOString().split('T')[0])
+    setAccountId('')
     setMessage('Transactie opgeslagen')
 
     setLoading(false)
@@ -113,6 +148,24 @@ export default function TransactionForm() {
       >
         <option value="expense">Uitgave</option>
         <option value="income">Inkomst</option>
+      </select>
+
+      <select
+        value={accountId}
+        onChange={(e) => setAccountId(e.target.value)}
+        required
+        style={{
+          padding: '0.75rem',
+          borderRadius: '8px',
+          border: '1px solid #ccc',
+        }}
+      >
+        <option value="">Kies een rekening</option>
+        {accounts.map((account) => (
+          <option key={account.id} value={account.id}>
+            {account.name}
+          </option>
+        ))}
       </select>
 
       <input
