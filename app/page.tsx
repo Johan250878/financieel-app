@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import { supabase } from "@/lib/supabase";
 import { useRouter } from "next/navigation";
+import TransactionForm from "../app/TransactionForm";
 
 type Transaction = {
   id: string;
@@ -22,15 +23,11 @@ export default function Home() {
   const [errorMessage, setErrorMessage] = useState("");
 
   useEffect(() => {
-    let mounted = true;
-
-    async function init() {
+    async function loadPage() {
       const {
         data: { session },
         error,
       } = await supabase.auth.getSession();
-
-      if (!mounted) return;
 
       if (error) {
         setErrorMessage(error.message);
@@ -44,53 +41,24 @@ export default function Home() {
       }
 
       setUser(session.user);
-      await fetchTransactions(session.user.id);
-    }
 
-    const {
-      data: { subscription },
-    } = supabase.auth.onAuthStateChange(async (_event, session) => {
-      if (!mounted) return;
+      const { data, error: txError } = await supabase
+        .from("transactions")
+        .select("*")
+        .eq("user_id", session.user.id)
+        .order("transaction_date", { ascending: false });
 
-      if (!session?.user) {
-        setUser(null);
-        setTransactions([]);
-        setLoading(false);
-        router.push("/login");
-        return;
+      if (txError) {
+        setErrorMessage(txError.message);
+      } else {
+        setTransactions((data as Transaction[]) ?? []);
       }
 
-      setUser(session.user);
-      await fetchTransactions(session.user.id);
-    });
-
-    init();
-
-    return () => {
-      mounted = false;
-      subscription.unsubscribe();
-    };
-  }, [router]);
-
-  async function fetchTransactions(userId: string) {
-    setLoading(true);
-
-    const { data, error } = await supabase
-      .from("transactions")
-      .select("*")
-      .eq("user_id", userId)
-      .order("transaction_date", { ascending: false });
-
-    if (error) {
-      setErrorMessage(error.message);
-      setTransactions([]);
-    } else {
-      setErrorMessage("");
-      setTransactions((data as Transaction[]) ?? []);
+      setLoading(false);
     }
 
-    setLoading(false);
-  }
+    loadPage();
+  }, [router]);
 
   async function handleDelete(id: string) {
     const { error } = await supabase.from("transactions").delete().eq("id", id);
@@ -129,6 +97,8 @@ export default function Home() {
       <button onClick={handleLogout}>Uitloggen</button>
 
       <hr style={{ margin: "20px 0" }} />
+
+      <TransactionForm />
 
       <h2>Transacties</h2>
 
