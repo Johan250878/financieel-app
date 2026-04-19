@@ -46,6 +46,7 @@ export default function Home() {
         return;
       }
 
+      console.log("Ingelogde user id:", session.user.id);
       setUser(session.user);
 
       await Promise.all([
@@ -74,6 +75,7 @@ export default function Home() {
       return;
     }
 
+    console.log("Transactions data:", data);
     setTransactions((data as Transaction[]) || []);
   }
 
@@ -90,6 +92,7 @@ export default function Home() {
       return;
     }
 
+    console.log("Accounts data:", data);
     setAccounts((data as Account[]) || []);
   }
 
@@ -102,6 +105,12 @@ export default function Home() {
     const accountTransactions = transactions.filter(
       (tx) => tx.account_id === accountId
     );
+
+    console.log("Account balance calc:", {
+      accountId,
+      startingBalance,
+      accountTransactions,
+    });
 
     const transactionTotal = accountTransactions.reduce((sum, tx) => {
       const amount = Number(tx.amount || 0);
