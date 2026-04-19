@@ -1,9 +1,11 @@
 "use client";
 
 import Link from "next/link";
-import { useEffect, useState } from "react";
-import { supabase } from "@/lib/supabase";
+import { useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
+import { supabase } from "@/lib/supabase";
+import TransactionForm from "./TransactionForm";
+import DeleteButton from "./DeleteButton";
 
 type Transaction = {
   id: string;
@@ -12,13 +14,16 @@ type Transaction = {
   transaction_date: string;
   type: "income" | "expense";
   user_id: string;
-  account_id: string;
+  account_id?: string | null;
+  accounts?: {
+    name: string;
+  } | null;
 };
 
 type Account = {
   id: string;
   name: string;
-  starting_balance: number;
+  balance: number;
 };
 
 export default function Home() {
@@ -30,343 +35,277 @@ export default function Home() {
   const [loading, setLoading] = useState(true);
   const [errorMessage, setErrorMessage] = useState("");
 
-  const [description, setDescription] = useState("");
-  const [amount, setAmount] = useState("");
-  const [type, setType] = useState<"income" | "expense">("expense");
-  const [transactionDate, setTransactionDate] = useState(
-    new Date().toISOString().split("T")[0]
-  );
-  const [selectedAccountId, setSelectedAccountId] = useState("");
-
   useEffect(() => {
     async function loadPage() {
       setLoading(true);
       setErrorMessage("");
 
       const {
-        data: { user },
-        error: userError,
-      } = await supabase.auth.getUser();
+        data: { session },
+      } = await supabase.auth.getSession();
 
-      if (userError || !user) {
+      if (!session?.user) {
         router.push("/login");
         return;
       }
 
-      setUser(user);
+      setUser(session.user);
 
-      const { data: accountsData, error: accountsError } = await supabase
-        .from("accounts")
-        .select("id, name, starting_balance")
-        .eq("user_id", user.id)
-        .order("name", { ascending: true });
+      await Promise.all([
+        fetchTransactions(session.user.id),
+        fetchAccounts(session.user.id),
+      ]);
 
-      if (accountsError) {
-        setErrorMessage("Fout bij laden van rekeningen: " + accountsError.message);
-        setLoading(false);
-        return;
-      }
-
-      const safeAccounts: Account[] = (accountsData || []).map((account: any) => ({
-        id: account.id,
-        name: account.name,
-        starting_balance: Number(account.starting_balance ?? 0),
-      }));
-
-      setAccounts(safeAccounts);
-
-      if (safeAccounts.length > 0) {
-        setSelectedAccountId(safeAccounts[0].id);
-      }
-
-      const { data: transactionsData, error: transactionsError } = await supabase
-        .from("transactions")
-        .select("id, description, amount, transaction_date, type, user_id, account_id")
-        .eq("user_id", user.id)
-        .order("transaction_date", { ascending: false });
-
-      if (transactionsError) {
-        setErrorMessage(
-          "Fout bij laden van transacties: " + transactionsError.message
-        );
-        setLoading(false);
-        return;
-      }
-
-      const safeTransactions: Transaction[] = (transactionsData || []).map((tx: any) => ({
-        ...tx,
-        amount: Number(tx.amount),
-      }));
-
-      setTransactions(safeTransactions);
       setLoading(false);
     }
 
     loadPage();
   }, [router]);
 
+  async function fetchTransactions(userId: string) {
+    const { data, error } = await supabase
+      .from("transactions")
+      .select(`
+        id,
+        description,
+        amount,
+        transaction_date,
+        type,
+        user_id,
+        account_id,
+        accounts (
+          name
+        )
+      `)
+      .eq("user_id", userId)
+      .order("transaction_date", { ascending: false });
+
+    if (error) {
+      console.error(error);
+      setErrorMessage("Kon transacties niet ophalen.");
+      return;
+    }
+
+    setTransactions((data as Transaction[]) || []);
+  }
+
+  async function fetchAccounts(userId: string) {
+    const { data, error } = await supabase
+      .from("accounts")
+      .select("id, name, balance")
+      .eq("user_id", userId)
+      .order("name");
+
+    if (error) {
+      console.error(error);
+      setErrorMessage("Kon rekeningen niet ophalen.");
+      return;
+    }
+
+    setAccounts((data as Account[]) || []);
+  }
+
   async function handleLogout() {
     await supabase.auth.signOut();
     router.push("/login");
   }
 
-  async function handleAddTransaction(e: React.FormEvent) {
-    e.preventDefault();
-    setErrorMessage("");
+  const totalBalance = useMemo(() => {
+    return accounts.reduce((sum, account) => sum + Number(account.balance || 0), 0);
+  }, [accounts]);
 
-    if (!description.trim()) {
-      setErrorMessage("Vul een omschrijving in.");
-      return;
-    }
+  const totalIncome = useMemo(() => {
+    return transactions
+      .filter((tx) => tx.type === "income")
+      .reduce((sum, tx) => sum + Number(tx.amount || 0), 0);
+  }, [transactions]);
 
-    if (!amount || isNaN(Number(amount))) {
-      setErrorMessage("Vul een geldig bedrag in.");
-      return;
-    }
-
-    if (!selectedAccountId) {
-      setErrorMessage("Kies een rekening.");
-      return;
-    }
-
-    if (!user) {
-      setErrorMessage("Geen gebruiker gevonden.");
-      return;
-    }
-
-    const insertPayload = {
-      description: description.trim(),
-      amount: Number(amount),
-      type,
-      transaction_date: transactionDate,
-      user_id: user.id,
-      account_id: selectedAccountId,
-    };
-
-    const { data, error } = await supabase
-      .from("transactions")
-      .insert([insertPayload])
-      .select();
-
-    if (error) {
-      setErrorMessage("Fout bij toevoegen transactie: " + error.message);
-      return;
-    }
-
-    const newTransaction = data?.[0];
-    if (newTransaction) {
-      setTransactions((prev) => [
-        { ...newTransaction, amount: Number(newTransaction.amount) },
-        ...prev,
-      ]);
-    }
-
-    setDescription("");
-    setAmount("");
-    setType("expense");
-    setTransactionDate(new Date().toISOString().split("T")[0]);
-  }
-
-  function getAccountBalance(account: Account) {
-    const accountTransactions = transactions.filter(
-      (tx) => tx.account_id === account.id
-    );
-
-    return accountTransactions.reduce((sum, tx) => {
-      return tx.type === "income"
-        ? sum + Number(tx.amount)
-        : sum - Number(tx.amount);
-    }, Number(account.starting_balance));
-  }
-
-  function getAccountName(accountId: string) {
-    const account = accounts.find((a) => a.id === accountId);
-    return account ? account.name : "Onbekende rekening";
-  }
+  const totalExpense = useMemo(() => {
+    return transactions
+      .filter((tx) => tx.type === "expense")
+      .reduce((sum, tx) => sum + Number(tx.amount || 0), 0);
+  }, [transactions]);
 
   if (loading) {
     return (
-      <main className="min-h-screen bg-zinc-100 p-6">
-        <div className="mx-auto max-w-5xl">
-          <p className="text-lg">Laden...</p>
-        </div>
+      <main className="min-h-screen bg-zinc-950 text-white flex items-center justify-center">
+        <p className="text-zinc-300">Laden...</p>
       </main>
     );
   }
 
   return (
-    <main className="min-h-screen bg-zinc-100 p-6">
-      <div className="mx-auto max-w-5xl space-y-6">
-        <div className="flex items-center justify-between rounded-2xl bg-white p-6 shadow">
-          <div>
-            <h1 className="text-3xl font-bold">Financieel overzicht</h1>
-            <p className="mt-1 text-sm text-zinc-600">
-              Ingelogd als: {user?.email}
-            </p>
-          </div>
+    <main className="min-h-screen bg-zinc-950 text-white">
+      <div className="mx-auto max-w-6xl px-4 py-6 sm:px-6 lg:px-8">
+        <header className="mb-8 flex flex-col gap-4 rounded-3xl border border-zinc-800 bg-zinc-900/80 p-6 shadow-2xl backdrop-blur">
+          <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
+            <div>
+              <p className="mb-2 text-sm uppercase tracking-[0.2em] text-zinc-400">
+                Financieel dashboard
+              </p>
+              <h1 className="text-3xl font-bold tracking-tight sm:text-4xl">
+                Welkom{user?.email ? `, ${user.email}` : ""}
+              </h1>
+              <p className="mt-2 text-zinc-400">
+                Overzicht van je rekeningen, saldo en recente transacties.
+              </p>
+            </div>
 
-          <div className="flex gap-3">
-            <Link
-              href="/accounts"
-              className="rounded-xl bg-zinc-800 px-4 py-2 text-white hover:opacity-90"
-            >
-              Rekeningen
-            </Link>
+            <div className="flex flex-wrap gap-3">
+              <Link
+                href="/accounts"
+                className="rounded-xl bg-white px-4 py-2 font-medium text-zinc-900 transition hover:opacity-90"
+              >
+                Naar rekeningen
+              </Link>
 
-            <button
-              onClick={handleLogout}
-              className="rounded-xl bg-black px-4 py-2 text-white hover:opacity-90"
-            >
-              Logout
-            </button>
+              <button
+                onClick={handleLogout}
+                className="rounded-xl border border-zinc-700 px-4 py-2 font-medium text-white transition hover:bg-zinc-800"
+              >
+                Uitloggen
+              </button>
+            </div>
           </div>
-        </div>
+        </header>
 
         {errorMessage && (
-          <div className="rounded-2xl border border-red-200 bg-red-50 p-4 text-red-700">
+          <div className="mb-6 rounded-2xl border border-red-500/30 bg-red-500/10 p-4 text-red-300">
             {errorMessage}
           </div>
         )}
 
-        <section className="rounded-2xl bg-white p-6 shadow">
-          <h2 className="mb-4 text-2xl font-semibold">Nieuwe transactie</h2>
+        <section className="mb-8 grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
+          <div className="rounded-3xl border border-zinc-800 bg-zinc-900 p-5 shadow-lg">
+            <p className="text-sm text-zinc-400">Totaal saldo</p>
+            <p className="mt-3 text-3xl font-bold">
+              € {totalBalance.toFixed(2)}
+            </p>
+          </div>
 
-          <form onSubmit={handleAddTransaction} className="grid gap-4 md:grid-cols-2">
-            <div className="md:col-span-2">
-              <label className="mb-1 block text-sm font-medium">Omschrijving</label>
-              <input
-                type="text"
-                value={description}
-                onChange={(e) => setDescription(e.target.value)}
-                className="w-full rounded-xl border border-zinc-300 px-4 py-2 outline-none focus:border-black"
-                placeholder="Bijv. Boodschappen"
-              />
-            </div>
+          <div className="rounded-3xl border border-zinc-800 bg-zinc-900 p-5 shadow-lg">
+            <p className="text-sm text-zinc-400">Totale inkomsten</p>
+            <p className="mt-3 text-3xl font-bold text-green-400">
+              € {totalIncome.toFixed(2)}
+            </p>
+          </div>
 
-            <div>
-              <label className="mb-1 block text-sm font-medium">Bedrag</label>
-              <input
-                type="number"
-                step="0.01"
-                value={amount}
-                onChange={(e) => setAmount(e.target.value)}
-                className="w-full rounded-xl border border-zinc-300 px-4 py-2 outline-none focus:border-black"
-                placeholder="0.00"
-              />
-            </div>
+          <div className="rounded-3xl border border-zinc-800 bg-zinc-900 p-5 shadow-lg">
+            <p className="text-sm text-zinc-400">Totale uitgaven</p>
+            <p className="mt-3 text-3xl font-bold text-red-400">
+              € {totalExpense.toFixed(2)}
+            </p>
+          </div>
 
-            <div>
-              <label className="mb-1 block text-sm font-medium">Type</label>
-              <select
-                value={type}
-                onChange={(e) => setType(e.target.value as "income" | "expense")}
-                className="w-full rounded-xl border border-zinc-300 px-4 py-2 outline-none focus:border-black"
-              >
-                <option value="expense">Uitgave</option>
-                <option value="income">Inkomst</option>
-              </select>
-            </div>
-
-            <div>
-              <label className="mb-1 block text-sm font-medium">Datum</label>
-              <input
-                type="date"
-                value={transactionDate}
-                onChange={(e) => setTransactionDate(e.target.value)}
-                className="w-full rounded-xl border border-zinc-300 px-4 py-2 outline-none focus:border-black"
-              />
-            </div>
-
-            <div>
-              <label className="mb-1 block text-sm font-medium">Rekening</label>
-              <select
-                value={selectedAccountId}
-                onChange={(e) => setSelectedAccountId(e.target.value)}
-                className="w-full rounded-xl border border-zinc-300 px-4 py-2 outline-none focus:border-black"
-              >
-                {accounts.length === 0 ? (
-                  <option value="">Geen rekeningen gevonden</option>
-                ) : (
-                  accounts.map((account) => (
-                    <option key={account.id} value={account.id}>
-                      {account.name}
-                    </option>
-                  ))
-                )}
-              </select>
-            </div>
-
-            <div className="md:col-span-2">
-              <button
-                type="submit"
-                className="rounded-xl bg-black px-5 py-3 text-white hover:opacity-90"
-              >
-                Transactie toevoegen
-              </button>
-            </div>
-          </form>
+          <div className="rounded-3xl border border-zinc-800 bg-zinc-900 p-5 shadow-lg">
+            <p className="text-sm text-zinc-400">Aantal rekeningen</p>
+            <p className="mt-3 text-3xl font-bold">
+              {accounts.length}
+            </p>
+          </div>
         </section>
 
-        <section className="rounded-2xl bg-white p-6 shadow">
-          <h2 className="mb-4 text-2xl font-semibold">Saldo per rekening</h2>
+        <section className="mb-8 grid gap-8 lg:grid-cols-[1.1fr_0.9fr]">
+          <div className="rounded-3xl border border-zinc-800 bg-zinc-900 p-6 shadow-xl">
+            <div className="mb-5">
+              <h2 className="text-2xl font-semibold">Nieuwe transactie</h2>
+              <p className="mt-1 text-sm text-zinc-400">
+                Voeg hier een nieuwe inkomsten- of uitgavetransactie toe.
+              </p>
+            </div>
 
-          {accounts.length === 0 ? (
-            <p className="text-zinc-600">Geen rekeningen gevonden.</p>
-          ) : (
-            <div className="grid gap-4 md:grid-cols-3">
-              {accounts.map((account) => {
-                const balance = getAccountBalance(account);
+            <TransactionForm />
+          </div>
 
-                return (
+          <div className="rounded-3xl border border-zinc-800 bg-zinc-900 p-6 shadow-xl">
+            <div className="mb-5 flex items-center justify-between">
+              <div>
+                <h2 className="text-2xl font-semibold">Rekeningen</h2>
+                <p className="mt-1 text-sm text-zinc-400">
+                  Huidige saldi per rekening.
+                </p>
+              </div>
+
+              <Link
+                href="/accounts"
+                className="text-sm font-medium text-zinc-300 underline-offset-4 hover:underline"
+              >
+                Beheer
+              </Link>
+            </div>
+
+            <div className="space-y-3">
+              {accounts.length === 0 ? (
+                <div className="rounded-2xl border border-dashed border-zinc-700 p-4 text-sm text-zinc-400">
+                  Nog geen rekeningen gevonden.
+                </div>
+              ) : (
+                accounts.map((account) => (
                   <div
                     key={account.id}
-                    className="rounded-2xl border border-zinc-200 bg-zinc-50 p-4"
+                    className="flex items-center justify-between rounded-2xl border border-zinc-800 bg-zinc-950/60 px-4 py-4"
                   >
-                    <h3 className="text-lg font-semibold">{account.name}</h3>
-                    <p className="mt-2 text-sm text-zinc-500">
-                      Beginsaldo: € {Number(account.starting_balance).toFixed(2)}
-                    </p>
-                    <p className="mt-3 text-2xl font-bold">
-                      € {balance.toFixed(2)}
+                    <div>
+                      <p className="font-medium">{account.name}</p>
+                      <p className="text-sm text-zinc-500">Beschikbaar saldo</p>
+                    </div>
+                    <p className="text-lg font-semibold">
+                      € {Number(account.balance || 0).toFixed(2)}
                     </p>
                   </div>
-                );
-              })}
+                ))
+              )}
             </div>
-          )}
+          </div>
         </section>
 
-        <section className="rounded-2xl bg-white p-6 shadow">
-          <h2 className="mb-4 text-2xl font-semibold">Transacties</h2>
+        <section className="rounded-3xl border border-zinc-800 bg-zinc-900 p-6 shadow-xl">
+          <div className="mb-5 flex items-center justify-between">
+            <div>
+              <h2 className="text-2xl font-semibold">Recente transacties</h2>
+              <p className="mt-1 text-sm text-zinc-400">
+                Je meest recente inkomsten en uitgaven.
+              </p>
+            </div>
+          </div>
 
           {transactions.length === 0 ? (
-            <p className="text-zinc-600">Nog geen transacties gevonden.</p>
+            <div className="rounded-2xl border border-dashed border-zinc-700 p-6 text-zinc-400">
+              Nog geen transacties gevonden.
+            </div>
           ) : (
             <div className="space-y-3">
               {transactions.map((tx) => (
                 <div
                   key={tx.id}
-                  className="flex flex-col gap-2 rounded-2xl border border-zinc-200 p-4 md:flex-row md:items-center md:justify-between"
+                  className="flex flex-col gap-4 rounded-2xl border border-zinc-800 bg-zinc-950/60 p-4 md:flex-row md:items-center md:justify-between"
                 >
                   <div>
                     <p className="font-semibold">{tx.description}</p>
-                    <p className="text-sm text-zinc-500">
-                      {tx.transaction_date} • {getAccountName(tx.account_id)}
-                    </p>
+                    <div className="mt-1 flex flex-wrap gap-3 text-sm text-zinc-400">
+                      <span>
+                        {new Date(tx.transaction_date).toLocaleDateString("nl-NL")}
+                      </span>
+                      <span>
+                        {tx.type === "income" ? "Inkomst" : "Uitgave"}
+                      </span>
+                      {tx.accounts?.name && <span>Rekening: {tx.accounts.name}</span>}
+                    </div>
                   </div>
 
-                  <div className="text-right">
-                    <p
-                      className={`text-lg font-bold ${
-                        tx.type === "income" ? "text-green-600" : "text-red-600"
-                      }`}
-                    >
-                      {tx.type === "income" ? "+" : "-"}€{" "}
-                      {Number(tx.amount).toFixed(2)}
-                    </p>
-                    <p className="text-sm text-zinc-500">
-                      {tx.type === "income" ? "Inkomst" : "Uitgave"}
-                    </p>
+                  <div className="flex items-center gap-3">
+                    <div className="text-right">
+                      <p
+                        className={`text-lg font-bold ${
+                          tx.type === "income" ? "text-green-400" : "text-red-400"
+                        }`}
+                      >
+                        {tx.type === "income" ? "+" : "-"}€
+                        {Number(tx.amount).toFixed(2)}
+                      </p>
+                    </div>
+
+                    <DeleteButton id={tx.id} />
                   </div>
                 </div>
               ))}
