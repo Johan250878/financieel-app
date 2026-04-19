@@ -63,7 +63,8 @@ export default function Home() {
   async function fetchTransactions(userId: string) {
     const { data, error } = await supabase
       .from("transactions")
-      .select(`
+      .select(
+        `
         id,
         description,
         amount,
@@ -74,7 +75,8 @@ export default function Home() {
         accounts (
           name
         )
-      `)
+      `
+      )
       .eq("user_id", userId)
       .order("transaction_date", { ascending: false });
 
@@ -109,7 +111,10 @@ export default function Home() {
   }
 
   const totalBalance = useMemo(() => {
-    return accounts.reduce((sum, account) => sum + Number(account.balance || 0), 0);
+    return accounts.reduce(
+      (sum, account) => sum + Number(account.balance || 0),
+      0
+    );
   }, [accounts]);
 
   const totalIncome = useMemo(() => {
@@ -128,9 +133,9 @@ export default function Home() {
 
   if (loading) {
     return (
-      <main className="min-h-screen bg-zinc-950 text-white">
+      <main className="min-h-screen bg-[#f3f4f6] text-zinc-900">
         <div className="flex min-h-screen items-center justify-center px-6">
-          <div className="rounded-3xl border border-white/10 bg-white/5 px-6 py-4 text-zinc-300 shadow-2xl backdrop-blur">
+          <div className="rounded-[28px] border border-zinc-200 bg-white px-6 py-4 text-zinc-600 shadow-[0_10px_30px_rgba(0,0,0,0.08)]">
             Dashboard laden...
           </div>
         </div>
@@ -139,311 +144,303 @@ export default function Home() {
   }
 
   return (
-    <main className="min-h-screen bg-zinc-950 text-white">
-      <div className="relative overflow-hidden">
-        <div className="absolute inset-0 bg-[radial-gradient(circle_at_top_left,rgba(59,130,246,0.16),transparent_28%),radial-gradient(circle_at_top_right,rgba(16,185,129,0.12),transparent_24%),radial-gradient(circle_at_bottom,rgba(168,85,247,0.10),transparent_30%)]" />
-        <div className="relative mx-auto max-w-7xl px-4 py-5 sm:px-6 lg:px-8 lg:py-8">
-          <header className="mb-6 rounded-[28px] border border-white/10 bg-white/5 p-4 shadow-2xl backdrop-blur md:mb-8 md:p-6">
-            <div className="flex flex-col gap-5 lg:flex-row lg:items-center lg:justify-between">
-              <div className="max-w-2xl">
-                <div className="mb-3 inline-flex items-center rounded-full border border-white/10 bg-white/5 px-3 py-1 text-xs font-medium tracking-[0.2em] text-zinc-300 uppercase">
-                  Financieel overzicht
-                </div>
+    <main className="min-h-screen bg-[#f3f4f6] text-zinc-900">
+      <div className="mx-auto max-w-7xl px-4 py-5 sm:px-6 lg:px-8 lg:py-8">
+        <header className="mb-6 rounded-[32px] border border-zinc-200 bg-white p-5 shadow-[0_12px_30px_rgba(0,0,0,0.06)] sm:p-6 lg:mb-8 lg:p-8">
+          <div className="flex flex-col gap-6 lg:flex-row lg:items-start lg:justify-between">
+            <div className="max-w-2xl">
+              <div className="mb-4 inline-flex rounded-full border border-zinc-200 bg-zinc-50 px-3 py-1 text-xs font-semibold uppercase tracking-[0.2em] text-zinc-500 shadow-[inset_0_1px_0_rgba(255,255,255,0.9)]">
+                Financieel overzicht
+              </div>
 
-                <h1 className="text-3xl font-semibold tracking-tight text-white sm:text-4xl lg:text-5xl">
-                  Grip op jullie geld, in één oogopslag
-                </h1>
+              <h1 className="text-3xl font-semibold tracking-tight text-zinc-900 sm:text-4xl lg:text-5xl">
+                Grip op jullie geld, in één oogopslag
+              </h1>
 
-                <p className="mt-3 max-w-xl text-sm leading-6 text-zinc-300 sm:text-base">
-                  Bekijk saldo’s, rekeningen en recente transacties in een rustige,
-                  moderne dashboardweergave.
+              <p className="mt-4 max-w-xl text-sm leading-6 text-zinc-600 sm:text-base">
+                Bekijk saldo’s, rekeningen en recente transacties in een rustige,
+                moderne dashboardweergave.
+              </p>
+
+              {user?.email && (
+                <p className="mt-5 text-sm text-zinc-500">
+                  Ingelogd als <span className="font-medium text-zinc-700">{user.email}</span>
                 </p>
-
-                {user?.email && (
-                  <p className="mt-4 text-sm text-zinc-400">
-                    Ingelogd als <span className="text-zinc-200">{user.email}</span>
-                  </p>
-                )}
-              </div>
-
-              <div className="flex flex-col gap-3 sm:flex-row lg:flex-col xl:flex-row">
-                <Link
-                  href="/accounts"
-                  className="inline-flex items-center justify-center rounded-2xl bg-white px-5 py-3 text-sm font-semibold text-zinc-950 shadow-lg transition hover:scale-[1.02] hover:bg-zinc-100"
-                >
-                  Beheer rekeningen
-                </Link>
-
-                <button
-                  onClick={handleLogout}
-                  className="inline-flex items-center justify-center rounded-2xl border border-white/10 bg-white/5 px-5 py-3 text-sm font-semibold text-white transition hover:bg-white/10"
-                >
-                  Uitloggen
-                </button>
-              </div>
-            </div>
-          </header>
-
-          {errorMessage && (
-            <div className="mb-6 rounded-3xl border border-red-400/20 bg-red-500/10 p-4 text-sm text-red-200">
-              {errorMessage}
-            </div>
-          )}
-
-          <section className="mb-6 grid gap-4 lg:mb-8 lg:grid-cols-12">
-            <div className="lg:col-span-7">
-              <div className="relative h-full overflow-hidden rounded-[32px] border border-white/10 bg-gradient-to-br from-zinc-900 via-zinc-900 to-zinc-800 p-5 shadow-2xl sm:p-6 lg:p-8">
-                <div className="absolute right-0 top-0 h-40 w-40 rounded-full bg-emerald-400/10 blur-3xl" />
-                <div className="absolute bottom-0 left-0 h-40 w-40 rounded-full bg-blue-400/10 blur-3xl" />
-
-                <div className="relative">
-                  <p className="text-sm font-medium text-zinc-400">Totaal saldo</p>
-
-                  <div className="mt-4">
-                    <h2 className="text-4xl font-semibold tracking-tight text-white sm:text-5xl">
-                      € {totalBalance.toFixed(2)}
-                    </h2>
-                    <p className="mt-2 text-sm text-zinc-400">
-                      Totaal van alle gekoppelde rekeningen in jouw overzicht.
-                    </p>
-                  </div>
-
-                  <div className="mt-8 grid grid-cols-2 gap-3 sm:flex sm:flex-wrap">
-                    <Link
-                      href="/accounts"
-                      className="inline-flex items-center justify-center rounded-2xl bg-white px-4 py-3 text-sm font-semibold text-zinc-950 transition hover:bg-zinc-100"
-                    >
-                      Naar rekeningen
-                    </Link>
-
-                    <a
-                      href="#nieuwe-transactie"
-                      className="inline-flex items-center justify-center rounded-2xl border border-white/10 bg-white/5 px-4 py-3 text-sm font-semibold text-white transition hover:bg-white/10"
-                    >
-                      Nieuwe transactie
-                    </a>
-                  </div>
-                </div>
-              </div>
-            </div>
-
-            <div className="grid gap-4 sm:grid-cols-3 lg:col-span-5 lg:grid-cols-1">
-              <StatCard
-                label="Inkomsten"
-                value={`€ ${totalIncome.toFixed(2)}`}
-                sublabel="Totaal geregistreerd"
-                accent="green"
-              />
-              <StatCard
-                label="Uitgaven"
-                value={`€ ${totalExpense.toFixed(2)}`}
-                sublabel="Totaal geregistreerd"
-                accent="red"
-              />
-              <StatCard
-                label="Rekeningen"
-                value={`${accounts.length}`}
-                sublabel="Actieve rekeningen"
-                accent="neutral"
-              />
-            </div>
-          </section>
-
-          <section className="mb-6 grid gap-4 md:grid-cols-2 xl:grid-cols-4">
-            <QuickActionCard
-              title="Nieuwe transactie"
-              description="Voeg direct een inkomsten- of uitgavetransactie toe."
-              href="#nieuwe-transactie"
-            />
-            <QuickActionCard
-              title="Rekeningen"
-              description="Bekijk en beheer jullie betaal- en spaarrekeningen."
-              href="/accounts"
-            />
-            <QuickActionCard
-              title="Spaarpotjes"
-              description="Maak later aparte potjes voor doelen en reserveringen."
-              href="/accounts"
-            />
-            <QuickActionCard
-              title="Vaste lasten"
-              description="Voorbereid op een volgende stap in je dashboard."
-              href="/accounts"
-            />
-          </section>
-
-          <section className="grid gap-6 xl:grid-cols-12">
-            <div
-              id="nieuwe-transactie"
-              className="rounded-[28px] border border-white/10 bg-white/5 p-5 shadow-2xl backdrop-blur sm:p-6 xl:col-span-5"
-            >
-              <div className="mb-5">
-                <p className="text-sm font-medium text-zinc-400">Toevoegen</p>
-                <h3 className="mt-1 text-2xl font-semibold text-white">
-                  Nieuwe transactie
-                </h3>
-                <p className="mt-2 text-sm leading-6 text-zinc-400">
-                  Leg inkomsten en uitgaven direct vast zodat je overzicht actueel blijft.
-                </p>
-              </div>
-
-              <TransactionForm />
-            </div>
-
-            <div className="rounded-[28px] border border-white/10 bg-white/5 p-5 shadow-2xl backdrop-blur sm:p-6 xl:col-span-7">
-              <div className="mb-5 flex items-start justify-between gap-4">
-                <div>
-                  <p className="text-sm font-medium text-zinc-400">Overzicht</p>
-                  <h3 className="mt-1 text-2xl font-semibold text-white">
-                    Recente transacties
-                  </h3>
-                  <p className="mt-2 text-sm leading-6 text-zinc-400">
-                    De laatste bewegingen op jullie rekeningen.
-                  </p>
-                </div>
-
-                <div className="rounded-2xl border border-white/10 bg-white/5 px-3 py-2 text-xs text-zinc-300">
-                  {transactions.length} transacties
-                </div>
-              </div>
-
-              {recentTransactions.length === 0 ? (
-                <div className="rounded-3xl border border-dashed border-white/10 bg-zinc-950/40 p-6 text-sm text-zinc-400">
-                  Nog geen transacties gevonden.
-                </div>
-              ) : (
-                <div className="space-y-3">
-                  {recentTransactions.map((tx) => (
-                    <div
-                      key={tx.id}
-                      className="flex flex-col gap-4 rounded-3xl border border-white/10 bg-zinc-950/60 p-4 transition hover:bg-zinc-900/80 sm:p-5 md:flex-row md:items-center md:justify-between"
-                    >
-                      <div className="min-w-0">
-                        <div className="flex flex-wrap items-center gap-2">
-                          <p className="truncate text-base font-semibold text-white">
-                            {tx.description}
-                          </p>
-                          <span
-                            className={`rounded-full px-2.5 py-1 text-xs font-medium ${
-                              tx.type === "income"
-                                ? "bg-green-500/15 text-green-300"
-                                : "bg-red-500/15 text-red-300"
-                            }`}
-                          >
-                            {tx.type === "income" ? "Inkomst" : "Uitgave"}
-                          </span>
-                        </div>
-
-                        <div className="mt-2 flex flex-wrap gap-x-4 gap-y-1 text-sm text-zinc-400">
-                          <span>
-                            {new Date(tx.transaction_date).toLocaleDateString("nl-NL")}
-                          </span>
-                          {tx.accounts?.[0]?.name && (
-                            <span>Rekening: {tx.accounts[0].name}</span>
-                          )}
-                        </div>
-                      </div>
-
-                      <div className="flex items-center justify-between gap-3 md:justify-end">
-                        <div className="text-left md:text-right">
-                          <p
-                            className={`text-lg font-semibold ${
-                              tx.type === "income" ? "text-green-300" : "text-red-300"
-                            }`}
-                          >
-                            {tx.type === "income" ? "+" : "-"}€
-                            {Number(tx.amount).toFixed(2)}
-                          </p>
-                        </div>
-
-                        <DeleteButton id={tx.id} />
-                      </div>
-                    </div>
-                  ))}
-                </div>
               )}
             </div>
-          </section>
 
-          <section className="mt-6 grid gap-6 lg:mt-8 xl:grid-cols-12">
-            <div className="rounded-[28px] border border-white/10 bg-white/5 p-5 shadow-2xl backdrop-blur sm:p-6 xl:col-span-5">
-              <div className="mb-5 flex items-center justify-between">
-                <div>
-                  <p className="text-sm font-medium text-zinc-400">Rekeningen</p>
-                  <h3 className="mt-1 text-2xl font-semibold text-white">
-                    Saldo per rekening
-                  </h3>
-                </div>
+            <div className="flex flex-col gap-3 sm:flex-row">
+              <Link
+                href="/accounts"
+                className="inline-flex items-center justify-center rounded-2xl border border-zinc-200 bg-white px-5 py-3 text-sm font-semibold text-zinc-800 shadow-[0_8px_20px_rgba(0,0,0,0.06),inset_0_1px_0_rgba(255,255,255,0.9)] transition hover:-translate-y-0.5 hover:shadow-[0_14px_28px_rgba(0,0,0,0.08)]"
+              >
+                Beheer rekeningen
+              </Link>
 
-                <Link
-                  href="/accounts"
-                  className="text-sm font-medium text-zinc-300 transition hover:text-white"
-                >
-                  Alles bekijken
-                </Link>
-              </div>
-
-              <div className="space-y-3">
-                {accounts.length === 0 ? (
-                  <div className="rounded-3xl border border-dashed border-white/10 bg-zinc-950/40 p-5 text-sm text-zinc-400">
-                    Nog geen rekeningen gevonden.
-                  </div>
-                ) : (
-                  accounts.map((account) => (
-                    <div
-                      key={account.id}
-                      className="flex items-center justify-between rounded-3xl border border-white/10 bg-zinc-950/60 p-4"
-                    >
-                      <div className="min-w-0">
-                        <p className="truncate font-medium text-white">{account.name}</p>
-                        <p className="mt-1 text-sm text-zinc-400">Beschikbaar saldo</p>
-                      </div>
-
-                      <p className="ml-4 text-base font-semibold text-white">
-                        € {Number(account.balance || 0).toFixed(2)}
-                      </p>
-                    </div>
-                  ))
-                )}
-              </div>
+              <button
+                onClick={handleLogout}
+                className="inline-flex items-center justify-center rounded-2xl border border-zinc-200 bg-zinc-50 px-5 py-3 text-sm font-semibold text-zinc-700 shadow-[0_8px_20px_rgba(0,0,0,0.05),inset_0_1px_0_rgba(255,255,255,0.9)] transition hover:-translate-y-0.5 hover:bg-white"
+              >
+                Uitloggen
+              </button>
             </div>
+          </div>
+        </header>
 
-            <div className="rounded-[28px] border border-white/10 bg-white/5 p-5 shadow-2xl backdrop-blur sm:p-6 xl:col-span-7">
-              <div className="mb-5">
-                <p className="text-sm font-medium text-zinc-400">Inzicht</p>
-                <h3 className="mt-1 text-2xl font-semibold text-white">
-                  Samenvatting
-                </h3>
-                <p className="mt-2 text-sm leading-6 text-zinc-400">
-                  Dit blok geeft je een rustige managementsamenvatting van de huidige stand.
+        {errorMessage && (
+          <div className="mb-6 rounded-[24px] border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700 shadow-[0_8px_20px_rgba(220,38,38,0.08)]">
+            {errorMessage}
+          </div>
+        )}
+
+        <section className="mb-6 grid gap-4 lg:mb-8 lg:grid-cols-12">
+          <div className="lg:col-span-7">
+            <div className="rounded-[32px] border border-zinc-200 bg-white p-6 shadow-[0_18px_40px_rgba(0,0,0,0.06)] sm:p-7 lg:h-full lg:p-8">
+              <p className="text-sm font-medium text-zinc-500">Totaal saldo</p>
+
+              <div className="mt-4">
+                <h2 className="text-4xl font-semibold tracking-tight text-zinc-900 sm:text-5xl">
+                  € {totalBalance.toFixed(2)}
+                </h2>
+                <p className="mt-3 text-sm leading-6 text-zinc-600">
+                  Totaal van alle gekoppelde rekeningen in jouw overzicht.
                 </p>
               </div>
 
-              <div className="grid gap-4 md:grid-cols-3">
-                <InsightCard
-                  title="Positie"
-                  text={
-                    totalBalance >= 0
-                      ? "Je totale saldo staat positief."
-                      : "Je totale saldo staat negatief."
-                  }
-                />
-                <InsightCard
-                  title="Grootste stroom"
-                  text={
-                    totalExpense > totalIncome
-                      ? "De uitgaven zijn momenteel hoger dan de inkomsten."
-                      : "De inkomsten zijn momenteel hoger dan de uitgaven."
-                  }
-                />
-                <InsightCard
-                  title="Structuur"
-                  text={`Je dashboard bevat nu ${accounts.length} rekening(en) en ${transactions.length} transactie(s).`}
-                />
+              <div className="mt-8 flex flex-wrap gap-3">
+                <Link
+                  href="/accounts"
+                  className="inline-flex items-center justify-center rounded-2xl border border-zinc-200 bg-zinc-900 px-5 py-3 text-sm font-semibold text-white shadow-[0_10px_24px_rgba(24,24,27,0.22)] transition hover:-translate-y-0.5 hover:bg-black"
+                >
+                  Naar rekeningen
+                </Link>
+
+                <a
+                  href="#nieuwe-transactie"
+                  className="inline-flex items-center justify-center rounded-2xl border border-zinc-200 bg-white px-5 py-3 text-sm font-semibold text-zinc-800 shadow-[0_8px_20px_rgba(0,0,0,0.05),inset_0_1px_0_rgba(255,255,255,0.9)] transition hover:-translate-y-0.5 hover:shadow-[0_14px_28px_rgba(0,0,0,0.08)]"
+                >
+                  Nieuwe transactie
+                </a>
               </div>
             </div>
-          </section>
-        </div>
+          </div>
+
+          <div className="grid gap-4 sm:grid-cols-3 lg:col-span-5 lg:grid-cols-1">
+            <StatCard
+              label="Inkomsten"
+              value={`€ ${totalIncome.toFixed(2)}`}
+              sublabel="Totaal geregistreerd"
+              accent="green"
+            />
+            <StatCard
+              label="Uitgaven"
+              value={`€ ${totalExpense.toFixed(2)}`}
+              sublabel="Totaal geregistreerd"
+              accent="red"
+            />
+            <StatCard
+              label="Rekeningen"
+              value={`${accounts.length}`}
+              sublabel="Actieve rekeningen"
+              accent="neutral"
+            />
+          </div>
+        </section>
+
+        <section className="mb-6 grid gap-4 md:grid-cols-2 xl:grid-cols-4">
+          <QuickActionCard
+            title="Nieuwe transactie"
+            description="Voeg direct een inkomsten- of uitgavetransactie toe."
+            href="#nieuwe-transactie"
+          />
+          <QuickActionCard
+            title="Rekeningen"
+            description="Bekijk en beheer jullie betaal- en spaarrekeningen."
+            href="/accounts"
+          />
+          <QuickActionCard
+            title="Spaarpotjes"
+            description="Maak later aparte potjes voor doelen en reserveringen."
+            href="/accounts"
+          />
+          <QuickActionCard
+            title="Vaste lasten"
+            description="Voorbereid op een volgende stap in je dashboard."
+            href="/accounts"
+          />
+        </section>
+
+        <section className="grid gap-6 xl:grid-cols-12">
+          <div
+            id="nieuwe-transactie"
+            className="rounded-[32px] border border-zinc-200 bg-white p-5 shadow-[0_16px_38px_rgba(0,0,0,0.06)] sm:p-6 xl:col-span-5"
+          >
+            <div className="mb-5">
+              <p className="text-sm font-medium text-zinc-500">Toevoegen</p>
+              <h3 className="mt-1 text-2xl font-semibold text-zinc-900">
+                Nieuwe transactie
+              </h3>
+              <p className="mt-2 text-sm leading-6 text-zinc-600">
+                Leg inkomsten en uitgaven direct vast zodat je overzicht actueel blijft.
+              </p>
+            </div>
+
+            <TransactionForm />
+          </div>
+
+          <div className="rounded-[32px] border border-zinc-200 bg-white p-5 shadow-[0_16px_38px_rgba(0,0,0,0.06)] sm:p-6 xl:col-span-7">
+            <div className="mb-5 flex items-start justify-between gap-4">
+              <div>
+                <p className="text-sm font-medium text-zinc-500">Overzicht</p>
+                <h3 className="mt-1 text-2xl font-semibold text-zinc-900">
+                  Recente transacties
+                </h3>
+                <p className="mt-2 text-sm leading-6 text-zinc-600">
+                  De laatste bewegingen op jullie rekeningen.
+                </p>
+              </div>
+
+              <div className="rounded-full border border-zinc-200 bg-zinc-50 px-3 py-2 text-xs font-medium text-zinc-600 shadow-[inset_0_1px_0_rgba(255,255,255,0.9)]">
+                {transactions.length} transacties
+              </div>
+            </div>
+
+            {recentTransactions.length === 0 ? (
+              <div className="rounded-[24px] border border-dashed border-zinc-200 bg-zinc-50 p-6 text-sm text-zinc-500">
+                Nog geen transacties gevonden.
+              </div>
+            ) : (
+              <div className="space-y-3">
+                {recentTransactions.map((tx) => (
+                  <div
+                    key={tx.id}
+                    className="flex flex-col gap-4 rounded-[24px] border border-zinc-200 bg-[#fcfcfd] p-4 shadow-[0_8px_24px_rgba(0,0,0,0.04)] transition hover:-translate-y-0.5 hover:shadow-[0_14px_30px_rgba(0,0,0,0.06)] sm:p-5 md:flex-row md:items-center md:justify-between"
+                  >
+                    <div className="min-w-0">
+                      <div className="flex flex-wrap items-center gap-2">
+                        <p className="truncate text-base font-semibold text-zinc-900">
+                          {tx.description}
+                        </p>
+                        <span
+                          className={`rounded-full px-2.5 py-1 text-xs font-semibold ${
+                            tx.type === "income"
+                              ? "bg-emerald-50 text-emerald-700 border border-emerald-100"
+                              : "bg-rose-50 text-rose-700 border border-rose-100"
+                          }`}
+                        >
+                          {tx.type === "income" ? "Inkomst" : "Uitgave"}
+                        </span>
+                      </div>
+
+                      <div className="mt-2 flex flex-wrap gap-x-4 gap-y-1 text-sm text-zinc-500">
+                        <span>
+                          {new Date(tx.transaction_date).toLocaleDateString("nl-NL")}
+                        </span>
+                        {tx.accounts?.[0]?.name && (
+                          <span>Rekening: {tx.accounts[0].name}</span>
+                        )}
+                      </div>
+                    </div>
+
+                    <div className="flex items-center justify-between gap-3 md:justify-end">
+                      <div className="text-left md:text-right">
+                        <p
+                          className={`text-lg font-semibold ${
+                            tx.type === "income" ? "text-emerald-700" : "text-rose-700"
+                          }`}
+                        >
+                          {tx.type === "income" ? "+" : "-"}€
+                          {Number(tx.amount).toFixed(2)}
+                        </p>
+                      </div>
+
+                      <DeleteButton id={tx.id} />
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        </section>
+
+        <section className="mt-6 grid gap-6 lg:mt-8 xl:grid-cols-12">
+          <div className="rounded-[32px] border border-zinc-200 bg-white p-5 shadow-[0_16px_38px_rgba(0,0,0,0.06)] sm:p-6 xl:col-span-5">
+            <div className="mb-5 flex items-center justify-between">
+              <div>
+                <p className="text-sm font-medium text-zinc-500">Rekeningen</p>
+                <h3 className="mt-1 text-2xl font-semibold text-zinc-900">
+                  Saldo per rekening
+                </h3>
+              </div>
+
+              <Link
+                href="/accounts"
+                className="text-sm font-medium text-zinc-600 transition hover:text-zinc-900"
+              >
+                Alles bekijken
+              </Link>
+            </div>
+
+            <div className="space-y-3">
+              {accounts.length === 0 ? (
+                <div className="rounded-[24px] border border-dashed border-zinc-200 bg-zinc-50 p-5 text-sm text-zinc-500">
+                  Nog geen rekeningen gevonden.
+                </div>
+              ) : (
+                accounts.map((account) => (
+                  <div
+                    key={account.id}
+                    className="flex items-center justify-between rounded-[24px] border border-zinc-200 bg-[#fcfcfd] p-4 shadow-[0_8px_24px_rgba(0,0,0,0.04)]"
+                  >
+                    <div className="min-w-0">
+                      <p className="truncate font-medium text-zinc-900">{account.name}</p>
+                      <p className="mt-1 text-sm text-zinc-500">Beschikbaar saldo</p>
+                    </div>
+
+                    <p className="ml-4 text-base font-semibold text-zinc-900">
+                      € {Number(account.balance || 0).toFixed(2)}
+                    </p>
+                  </div>
+                ))
+              )}
+            </div>
+          </div>
+
+          <div className="rounded-[32px] border border-zinc-200 bg-white p-5 shadow-[0_16px_38px_rgba(0,0,0,0.06)] sm:p-6 xl:col-span-7">
+            <div className="mb-5">
+              <p className="text-sm font-medium text-zinc-500">Inzicht</p>
+              <h3 className="mt-1 text-2xl font-semibold text-zinc-900">
+                Samenvatting
+              </h3>
+              <p className="mt-2 text-sm leading-6 text-zinc-600">
+                Een rustige samenvatting van de huidige stand van zaken.
+              </p>
+            </div>
+
+            <div className="grid gap-4 md:grid-cols-3">
+              <InsightCard
+                title="Positie"
+                text={
+                  totalBalance >= 0
+                    ? "Je totale saldo staat positief."
+                    : "Je totale saldo staat negatief."
+                }
+              />
+              <InsightCard
+                title="Grootste stroom"
+                text={
+                  totalExpense > totalIncome
+                    ? "De uitgaven zijn momenteel hoger dan de inkomsten."
+                    : "De inkomsten zijn momenteel hoger dan de uitgaven."
+                }
+              />
+              <InsightCard
+                title="Structuur"
+                text={`Je dashboard bevat nu ${accounts.length} rekening(en) en ${transactions.length} transactie(s).`}
+              />
+            </div>
+          </div>
+        </section>
       </div>
     </main>
   );
@@ -462,14 +459,14 @@ function StatCard({
 }) {
   const accentClass =
     accent === "green"
-      ? "text-green-300"
+      ? "text-emerald-700"
       : accent === "red"
-      ? "text-red-300"
-      : "text-white";
+      ? "text-rose-700"
+      : "text-zinc-900";
 
   return (
-    <div className="rounded-[28px] border border-white/10 bg-white/5 p-5 shadow-2xl backdrop-blur sm:p-6">
-      <p className="text-sm font-medium text-zinc-400">{label}</p>
+    <div className="rounded-[28px] border border-zinc-200 bg-white p-5 shadow-[0_14px_30px_rgba(0,0,0,0.05)] sm:p-6">
+      <p className="text-sm font-medium text-zinc-500">{label}</p>
       <p className={`mt-3 text-3xl font-semibold tracking-tight ${accentClass}`}>
         {value}
       </p>
@@ -489,16 +486,16 @@ function QuickActionCard({
 }) {
   const isAnchor = href.startsWith("#");
 
+  const classes =
+    "group rounded-[28px] border border-zinc-200 bg-white p-5 shadow-[0_12px_28px_rgba(0,0,0,0.05)] transition hover:-translate-y-0.5 hover:shadow-[0_18px_34px_rgba(0,0,0,0.07)]";
+
   if (isAnchor) {
     return (
-      <a
-        href={href}
-        className="group rounded-[28px] border border-white/10 bg-white/5 p-5 shadow-xl backdrop-blur transition hover:bg-white/10"
-      >
+      <a href={href} className={classes}>
         <div className="flex h-full flex-col">
-          <p className="text-lg font-semibold text-white">{title}</p>
-          <p className="mt-2 text-sm leading-6 text-zinc-400">{description}</p>
-          <span className="mt-5 text-sm font-medium text-zinc-200 transition group-hover:text-white">
+          <p className="text-lg font-semibold text-zinc-900">{title}</p>
+          <p className="mt-2 text-sm leading-6 text-zinc-600">{description}</p>
+          <span className="mt-5 text-sm font-semibold text-zinc-700 transition group-hover:text-zinc-900">
             Openen →
           </span>
         </div>
@@ -507,14 +504,11 @@ function QuickActionCard({
   }
 
   return (
-    <Link
-      href={href}
-      className="group rounded-[28px] border border-white/10 bg-white/5 p-5 shadow-xl backdrop-blur transition hover:bg-white/10"
-    >
+    <Link href={href} className={classes}>
       <div className="flex h-full flex-col">
-        <p className="text-lg font-semibold text-white">{title}</p>
-        <p className="mt-2 text-sm leading-6 text-zinc-400">{description}</p>
-        <span className="mt-5 text-sm font-medium text-zinc-200 transition group-hover:text-white">
+        <p className="text-lg font-semibold text-zinc-900">{title}</p>
+        <p className="mt-2 text-sm leading-6 text-zinc-600">{description}</p>
+        <span className="mt-5 text-sm font-semibold text-zinc-700 transition group-hover:text-zinc-900">
           Openen →
         </span>
       </div>
@@ -530,9 +524,9 @@ function InsightCard({
   text: string;
 }) {
   return (
-    <div className="rounded-3xl border border-white/10 bg-zinc-950/50 p-4">
-      <p className="text-sm font-medium text-zinc-300">{title}</p>
-      <p className="mt-2 text-sm leading-6 text-zinc-400">{text}</p>
+    <div className="rounded-[24px] border border-zinc-200 bg-[#fcfcfd] p-4 shadow-[0_8px_22px_rgba(0,0,0,0.04)]">
+      <p className="text-sm font-semibold text-zinc-800">{title}</p>
+      <p className="mt-2 text-sm leading-6 text-zinc-600">{text}</p>
     </div>
   );
 }
