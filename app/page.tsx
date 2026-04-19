@@ -15,9 +15,7 @@ type Transaction = {
   type: "income" | "expense";
   user_id: string;
   account_id?: string | null;
-  accounts?: {
-    name: string;
-  }[] | null;
+  accounts?: { name: string }[] | null;
 };
 
 type Account = {
@@ -178,9 +176,7 @@ export default function Home() {
         <section className="mb-8 grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
           <div className="rounded-3xl border border-zinc-800 bg-zinc-900 p-5 shadow-lg">
             <p className="text-sm text-zinc-400">Totaal saldo</p>
-            <p className="mt-3 text-3xl font-bold">
-              € {totalBalance.toFixed(2)}
-            </p>
+            <p className="mt-3 text-3xl font-bold">€ {totalBalance.toFixed(2)}</p>
           </div>
 
           <div className="rounded-3xl border border-zinc-800 bg-zinc-900 p-5 shadow-lg">
@@ -199,9 +195,7 @@ export default function Home() {
 
           <div className="rounded-3xl border border-zinc-800 bg-zinc-900 p-5 shadow-lg">
             <p className="text-sm text-zinc-400">Aantal rekeningen</p>
-            <p className="mt-3 text-3xl font-bold">
-              {accounts.length}
-            </p>
+            <p className="mt-3 text-3xl font-bold">{accounts.length}</p>
           </div>
         </section>
 
@@ -260,13 +254,11 @@ export default function Home() {
         </section>
 
         <section className="rounded-3xl border border-zinc-800 bg-zinc-900 p-6 shadow-xl">
-          <div className="mb-5 flex items-center justify-between">
-            <div>
-              <h2 className="text-2xl font-semibold">Recente transacties</h2>
-              <p className="mt-1 text-sm text-zinc-400">
-                Je meest recente inkomsten en uitgaven.
-              </p>
-            </div>
+          <div className="mb-5">
+            <h2 className="text-2xl font-semibold">Recente transacties</h2>
+            <p className="mt-1 text-sm text-zinc-400">
+              Je meest recente inkomsten en uitgaven.
+            </p>
           </div>
 
           {transactions.length === 0 ? (
@@ -286,10 +278,10 @@ export default function Home() {
                       <span>
                         {new Date(tx.transaction_date).toLocaleDateString("nl-NL")}
                       </span>
-                      <span>
-                        {tx.type === "income" ? "Inkomst" : "Uitgave"}
-                      </span>
-                      {{tx.accounts?.[0]?.name && <span>Rekening: {tx.accounts[0].name}</span>}
+                      <span>{tx.type === "income" ? "Inkomst" : "Uitgave"}</span>
+                      {tx.accounts?.[0]?.name && (
+                        <span>Rekening: {tx.accounts[0].name}</span>
+                      )}
                     </div>
                   </div>
 
