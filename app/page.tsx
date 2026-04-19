@@ -5,6 +5,19 @@ import { supabase } from "@/lib/supabase";
 import { useRouter } from "next/navigation";
 
 type Transaction = {
+useEffect(() => {
+  async function checkUser() {
+    const {
+      data: { user },
+      error,
+    } = await supabase.auth.getUser();
+
+    console.log("USER:", user);
+    console.log("ERROR:", error);
+  }
+
+  checkUser();
+}, []);
   id: string;
   description: string;
   amount: number;
