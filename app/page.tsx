@@ -21,7 +21,7 @@ type Transaction = {
 type Account = {
   id: string;
   name: string;
-  balance: number;
+  starting_balance: number;
 };
 
 export default function Home() {
@@ -92,7 +92,7 @@ export default function Home() {
   async function fetchAccounts(userId: string) {
     const { data, error } = await supabase
       .from("accounts")
-      .select("id, name, balance")
+      .select("id, name, starting_balance")
       .eq("user_id", userId)
       .order("name");
 
@@ -112,7 +112,7 @@ export default function Home() {
 
   const totalBalance = useMemo(() => {
     return accounts.reduce(
-      (sum, account) => sum + Number(account.balance || 0),
+      (sum, account) => sum + Number(account.starting_balance || 0)
       0
     );
   }, [accounts]);
@@ -398,7 +398,7 @@ export default function Home() {
                     </div>
 
                     <p className="ml-4 text-base font-semibold text-zinc-900">
-                      € {Number(account.balance || 0).toFixed(2)}
+                     € {Number(account.starting_balance || 0).toFixed(2)}
                     </p>
                   </div>
                 ))
