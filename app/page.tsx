@@ -6,6 +6,8 @@ import { useRouter } from "next/navigation";
 
 type Transaction = {
 useEffect(() => {
+  console.log("🔥 COMPONENT LOADED");
+
   async function checkUser() {
     const {
       data: { user },
@@ -17,6 +19,7 @@ useEffect(() => {
   }
 
   checkUser();
+}, []);
 }, []);
   id: string;
   description: string;
