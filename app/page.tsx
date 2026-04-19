@@ -17,7 +17,7 @@ type Transaction = {
   account_id?: string | null;
   accounts?: {
     name: string;
-  } | null;
+  }[] | null;
 };
 
 type Account = {
@@ -289,7 +289,7 @@ export default function Home() {
                       <span>
                         {tx.type === "income" ? "Inkomst" : "Uitgave"}
                       </span>
-                      {tx.accounts?.name && <span>Rekening: {tx.accounts.name}</span>}
+                      {{tx.accounts?.[0]?.name && <span>Rekening: {tx.accounts[0].name}</span>}
                     </div>
                   </div>
 
