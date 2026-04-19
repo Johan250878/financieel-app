@@ -112,7 +112,7 @@ export default function Home() {
 
   const totalBalance = useMemo(() => {
     return accounts.reduce(
-      (sum, account) => sum + Number(account.starting_balance || 0)
+      (sum, account) => sum + Number(account.starting_balance || 0),
       0
     );
   }, [accounts]);
