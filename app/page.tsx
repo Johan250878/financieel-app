@@ -15,7 +15,6 @@ type Transaction = {
   type: "income" | "expense";
   user_id: string;
   account_id?: string | null;
-  accounts?: { name: string }[] | null;
 };
 
 type Account = {
@@ -64,25 +63,14 @@ export default function Home() {
     const { data, error } = await supabase
       .from("transactions")
       .select(
-        `
-        id,
-        description,
-        amount,
-        transaction_date,
-        type,
-        user_id,
-        account_id,
-        accounts (
-          name
-        )
-      `
+        "id, description, amount, transaction_date, type, user_id, account_id"
       )
       .eq("user_id", userId)
       .order("transaction_date", { ascending: false });
 
     if (error) {
-      console.error(error);
-      setErrorMessage("Kon transacties niet ophalen.");
+      console.error("Transactions error:", error);
+      setErrorMessage(`Kon transacties niet ophalen: ${error.message}`);
       return;
     }
 
@@ -97,8 +85,8 @@ export default function Home() {
       .order("name");
 
     if (error) {
-      console.error(error);
-      setErrorMessage("Kon rekeningen niet ophalen.");
+      console.error("Accounts error:", error);
+      setErrorMessage(`Kon rekeningen niet ophalen: ${error.message}`);
       return;
     }
 
@@ -110,26 +98,32 @@ export default function Home() {
     router.push("/login");
   }
 
-function getAccountActualBalance(accountId: string, startingBalance: number) {
-  const accountTransactions = transactions.filter(
-    (tx) => tx.account_id === accountId
-  );
+  function getAccountActualBalance(accountId: string, startingBalance: number) {
+    const accountTransactions = transactions.filter(
+      (tx) => tx.account_id === accountId
+    );
 
-  const transactionTotal = accountTransactions.reduce((sum, tx) => {
-    const amount = Number(tx.amount || 0);
-    return tx.type === "income" ? sum + amount : sum - amount;
-  }, 0);
+    const transactionTotal = accountTransactions.reduce((sum, tx) => {
+      const amount = Number(tx.amount || 0);
+      return tx.type === "income" ? sum + amount : sum - amount;
+    }, 0);
 
-  return Number(startingBalance || 0) + transactionTotal;
-}
+    return Number(startingBalance || 0) + transactionTotal;
+  }
+
+  function getAccountName(accountId?: string | null) {
+    if (!accountId) return null;
+    const account = accounts.find((acc) => acc.id === accountId);
+    return account?.name || null;
+  }
 
   const totalBalance = useMemo(() => {
-  return accounts.reduce(
-    (sum, account) =>
-      sum + getAccountActualBalance(account.id, account.starting_balance),
-    0
-  );
-}, [accounts, transactions]);
+    return accounts.reduce(
+      (sum, account) =>
+        sum + getAccountActualBalance(account.id, account.starting_balance),
+      0
+    );
+  }, [accounts, transactions]);
 
   const totalIncome = useMemo(() => {
     return transactions
@@ -178,7 +172,8 @@ function getAccountActualBalance(accountId: string, startingBalance: number) {
 
               {user?.email && (
                 <p className="mt-5 text-sm text-zinc-500">
-                  Ingelogd als <span className="font-medium text-zinc-700">{user.email}</span>
+                  Ingelogd als{" "}
+                  <span className="font-medium text-zinc-700">{user.email}</span>
                 </p>
               )}
             </div>
@@ -295,7 +290,8 @@ function getAccountActualBalance(accountId: string, startingBalance: number) {
                 Nieuwe transactie
               </h3>
               <p className="mt-2 text-sm leading-6 text-zinc-600">
-                Leg inkomsten en uitgaven direct vast zodat je overzicht actueel blijft.
+                Leg inkomsten en uitgaven direct vast zodat je overzicht actueel
+                blijft.
               </p>
             </div>
 
@@ -338,8 +334,8 @@ function getAccountActualBalance(accountId: string, startingBalance: number) {
                         <span
                           className={`rounded-full px-2.5 py-1 text-xs font-semibold ${
                             tx.type === "income"
-                              ? "bg-emerald-50 text-emerald-700 border border-emerald-100"
-                              : "bg-rose-50 text-rose-700 border border-rose-100"
+                              ? "border border-emerald-100 bg-emerald-50 text-emerald-700"
+                              : "border border-rose-100 bg-rose-50 text-rose-700"
                           }`}
                         >
                           {tx.type === "income" ? "Inkomst" : "Uitgave"}
@@ -348,10 +344,12 @@ function getAccountActualBalance(accountId: string, startingBalance: number) {
 
                       <div className="mt-2 flex flex-wrap gap-x-4 gap-y-1 text-sm text-zinc-500">
                         <span>
-                          {new Date(tx.transaction_date).toLocaleDateString("nl-NL")}
+                          {new Date(tx.transaction_date).toLocaleDateString(
+                            "nl-NL"
+                          )}
                         </span>
-                        {tx.accounts?.[0]?.name && (
-                          <span>Rekening: {tx.accounts[0].name}</span>
+                        {getAccountName(tx.account_id) && (
+                          <span>Rekening: {getAccountName(tx.account_id)}</span>
                         )}
                       </div>
                     </div>
@@ -360,7 +358,9 @@ function getAccountActualBalance(accountId: string, startingBalance: number) {
                       <div className="text-left md:text-right">
                         <p
                           className={`text-lg font-semibold ${
-                            tx.type === "income" ? "text-emerald-700" : "text-rose-700"
+                            tx.type === "income"
+                              ? "text-emerald-700"
+                              : "text-rose-700"
                           }`}
                         >
                           {tx.type === "income" ? "+" : "-"}€
@@ -407,12 +407,20 @@ function getAccountActualBalance(accountId: string, startingBalance: number) {
                     className="flex items-center justify-between rounded-[24px] border border-zinc-200 bg-[#fcfcfd] p-4 shadow-[0_8px_24px_rgba(0,0,0,0.04)]"
                   >
                     <div className="min-w-0">
-                      <p className="truncate font-medium text-zinc-900">{account.name}</p>
-                      <p className="mt-1 text-sm text-zinc-500">Beschikbaar saldo</p>
+                      <p className="truncate font-medium text-zinc-900">
+                        {account.name}
+                      </p>
+                      <p className="mt-1 text-sm text-zinc-500">
+                        Huidig saldo
+                      </p>
                     </div>
 
                     <p className="ml-4 text-base font-semibold text-zinc-900">
-                    € {getAccountActualBalance(account.id, account.starting_balance).toFixed(2)}
+                      €{" "}
+                      {getAccountActualBalance(
+                        account.id,
+                        account.starting_balance
+                      ).toFixed(2)}
                     </p>
                   </div>
                 ))
