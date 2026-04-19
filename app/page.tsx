@@ -110,12 +110,26 @@ export default function Home() {
     router.push("/login");
   }
 
+function getAccountActualBalance(accountId: string, startingBalance: number) {
+  const accountTransactions = transactions.filter(
+    (tx) => tx.account_id === accountId
+  );
+
+  const transactionTotal = accountTransactions.reduce((sum, tx) => {
+    const amount = Number(tx.amount || 0);
+    return tx.type === "income" ? sum + amount : sum - amount;
+  }, 0);
+
+  return Number(startingBalance || 0) + transactionTotal;
+}
+
   const totalBalance = useMemo(() => {
-    return accounts.reduce(
-      (sum, account) => sum + Number(account.starting_balance || 0),
-      0
-    );
-  }, [accounts]);
+  return accounts.reduce(
+    (sum, account) =>
+      sum + getAccountActualBalance(account.id, account.starting_balance),
+    0
+  );
+}, [accounts, transactions]);
 
   const totalIncome = useMemo(() => {
     return transactions
@@ -398,7 +412,7 @@ export default function Home() {
                     </div>
 
                     <p className="ml-4 text-base font-semibold text-zinc-900">
-                     € {Number(account.starting_balance || 0).toFixed(2)}
+                    € {getAccountActualBalance(account.id, account.starting_balance).toFixed(2)}
                     </p>
                   </div>
                 ))
