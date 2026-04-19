@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { useEffect, useState } from "react";
 import { supabase } from "@/lib/supabase";
 import { useRouter } from "next/navigation";
@@ -38,8 +39,6 @@ export default function Home() {
   const [selectedAccountId, setSelectedAccountId] = useState("");
 
   useEffect(() => {
-    console.log("🔥 COMPONENT LOADED");
-
     async function loadPage() {
       setLoading(true);
       setErrorMessage("");
@@ -48,9 +47,6 @@ export default function Home() {
         data: { user },
         error: userError,
       } = await supabase.auth.getUser();
-
-      console.log("USER:", user);
-      console.log("USER ERROR:", userError);
 
       if (userError || !user) {
         router.push("/login");
@@ -64,9 +60,6 @@ export default function Home() {
         .select("id, name, starting_balance")
         .eq("user_id", user.id)
         .order("name", { ascending: true });
-
-      console.log("ACCOUNTS DATA:", accountsData);
-      console.log("ACCOUNTS ERROR:", accountsError);
 
       if (accountsError) {
         setErrorMessage("Fout bij laden van rekeningen: " + accountsError.message);
@@ -211,12 +204,22 @@ export default function Home() {
               Ingelogd als: {user?.email}
             </p>
           </div>
-          <button
-            onClick={handleLogout}
-            className="rounded-xl bg-black px-4 py-2 text-white hover:opacity-90"
-          >
-            Logout
-          </button>
+
+          <div className="flex gap-3">
+            <Link
+              href="/accounts"
+              className="rounded-xl bg-zinc-800 px-4 py-2 text-white hover:opacity-90"
+            >
+              Rekeningen
+            </Link>
+
+            <button
+              onClick={handleLogout}
+              className="rounded-xl bg-black px-4 py-2 text-white hover:opacity-90"
+            >
+              Logout
+            </button>
+          </div>
         </div>
 
         {errorMessage && (
