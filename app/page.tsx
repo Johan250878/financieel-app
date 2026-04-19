@@ -5,22 +5,6 @@ import { supabase } from "@/lib/supabase";
 import { useRouter } from "next/navigation";
 
 type Transaction = {
-useEffect(() => {
-  console.log("🔥 COMPONENT LOADED");
-
-  async function checkUser() {
-    const {
-      data: { user },
-      error,
-    } = await supabase.auth.getUser();
-
-    console.log("USER:", user);
-    console.log("ERROR:", error);
-  }
-
-  checkUser();
-}, []);
-}, []);
   id: string;
   description: string;
   amount: number;
@@ -54,6 +38,8 @@ export default function Home() {
   const [selectedAccountId, setSelectedAccountId] = useState("");
 
   useEffect(() => {
+    console.log("🔥 COMPONENT LOADED");
+
     async function loadPage() {
       setLoading(true);
       setErrorMessage("");
@@ -62,6 +48,9 @@ export default function Home() {
         data: { user },
         error: userError,
       } = await supabase.auth.getUser();
+
+      console.log("USER:", user);
+      console.log("USER ERROR:", userError);
 
       if (userError || !user) {
         router.push("/login");
@@ -75,6 +64,9 @@ export default function Home() {
         .select("id, name, starting_balance")
         .eq("user_id", user.id)
         .order("name", { ascending: true });
+
+      console.log("ACCOUNTS DATA:", accountsData);
+      console.log("ACCOUNTS ERROR:", accountsError);
 
       if (accountsError) {
         setErrorMessage("Fout bij laden van rekeningen: " + accountsError.message);
