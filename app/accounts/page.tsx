@@ -1,6 +1,7 @@
 'use client'
 
 import { useEffect, useMemo, useState } from 'react'
+import { useRouter } from 'next/navigation'
 import { createClient } from '@/utils/supabase/client'
 
 import BalanceOverview from '../components/BalanceOverview'
@@ -21,15 +22,30 @@ type Transaction = {
 }
 
 export default function AccountsPage() {
+  const router = useRouter()
   const supabase = createClient()
 
   const [accounts, setAccounts] = useState<Account[]>([])
   const [transactions, setTransactions] = useState<Transaction[]>([])
   const [loading, setLoading] = useState(true)
 
+  const handleLogout = async () => {
+    await supabase.auth.signOut()
+    router.replace('/login')
+  }
+
   useEffect(() => {
     const fetchData = async () => {
       setLoading(true)
+
+      const {
+        data: { session },
+      } = await supabase.auth.getSession()
+
+      if (!session) {
+        router.replace('/login')
+        return
+      }
 
       const { data: accountsData, error: accountsError } = await supabase
         .from('accounts')
@@ -55,7 +71,7 @@ export default function AccountsPage() {
     }
 
     fetchData()
-  }, [])
+  }, [router, supabase])
 
   const getAccountActualBalance = (account: Account) => {
     if (account.name === 'Spaarrekening') {
@@ -97,24 +113,38 @@ export default function AccountsPage() {
   return (
     <main className="min-h-screen bg-gray-50 p-8">
       <div className="mx-auto max-w-5xl space-y-8">
-        <div>
-          <h1 className="text-3xl font-bold">Rekeningen</h1>
-          <p className="text-gray-500">
-            Overzicht van betaalrekeningen, spaarrekening en spaarpotjes.
-          </p>
+        <div className="flex items-start justify-between gap-4">
+          <div>
+            <h1 className="text-3xl font-bold">Rekeningen</h1>
+
+            <p className="text-gray-500">
+              Overzicht van betaalrekeningen, spaarrekening en spaarpotjes.
+            </p>
+          </div>
+
+          <button
+            onClick={handleLogout}
+            className="rounded-full border bg-white px-4 py-2 text-sm font-medium text-gray-700 shadow-sm transition hover:bg-gray-100"
+          >
+            Uitloggen
+          </button>
         </div>
 
         <section className="rounded-2xl border bg-white p-6 shadow-sm">
           <div className="mb-4 flex items-center justify-between">
             <div>
               <h2 className="text-lg font-semibold">Betaalrekeningen</h2>
+
               <p className="text-sm text-gray-500">
                 Saldo = startsaldo + inkomsten - uitgaven
               </p>
             </div>
 
             <div className="text-right">
-              <p className="text-sm text-gray-500">Totaal betaalrekeningen</p>
+              <p className="text-sm text-gray-500">
+                Totaal betaalrekeningen
+              </p>
+
               <p className="text-2xl font-bold">
                 €{totalPaymentBalance.toFixed(2)}
               </p>
@@ -124,7 +154,9 @@ export default function AccountsPage() {
           {loading ? (
             <p className="text-gray-500">Laden...</p>
           ) : paymentAccounts.length === 0 ? (
-            <p className="text-gray-500">Geen betaalrekeningen gevonden.</p>
+            <p className="text-gray-500">
+              Geen betaalrekeningen gevonden.
+            </p>
           ) : (
             <div className="grid gap-4 md:grid-cols-2">
               {paymentAccounts.map((account) => {
@@ -155,6 +187,7 @@ export default function AccountsPage() {
         <section className="space-y-6 rounded-2xl border bg-white p-6 shadow-sm">
           <div>
             <h2 className="text-lg font-semibold">Spaarrekening</h2>
+
             <p className="text-sm text-gray-500">
               Vrij te besteden = saldo spaarrekening - totaal in spaarpotjes
             </p>
