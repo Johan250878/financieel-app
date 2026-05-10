@@ -10,12 +10,18 @@ type SavingsPot = {
   target_amount: number | null
 }
 
-const ACCOUNT_ID = '4e219e66-d890-4cf4-8a04-a95a13ed4581'
+type SavingsAccount = {
+  id: string
+}
 
 export default function SavingsPots() {
   const supabase = createClient()
 
   const [pots, setPots] = useState<SavingsPot[]>([])
+  const [savingsAccount, setSavingsAccount] = useState<SavingsAccount | null>(
+    null
+  )
+
   const [name, setName] = useState('')
   const [currentAmount, setCurrentAmount] = useState('')
   const [targetAmount, setTargetAmount] = useState('')
@@ -26,11 +32,41 @@ export default function SavingsPots() {
     window.dispatchEvent(new Event('savings-pots-updated'))
   }
 
-  const fetchPots = async () => {
+  const getSavingsAccount = async () => {
+    const {
+      data: { user },
+      error: userError,
+    } = await supabase.auth.getUser()
+
+    if (userError || !user) {
+      console.error(userError)
+      return null
+    }
+
+    const { data, error } = await supabase
+      .from('accounts')
+      .select('id')
+      .eq('user_id', user.id)
+      .eq('name', 'Spaarrekening')
+      .single()
+
+    if (error || !data) {
+      console.error(error)
+      return null
+    }
+
+    return data
+  }
+
+  const fetchPots = async (accountId?: string) => {
+    const activeAccountId = accountId || savingsAccount?.id
+
+    if (!activeAccountId) return
+
     const { data, error } = await supabase
       .from('savings_pots')
       .select('id, name, current_amount, target_amount')
-      .eq('account_id', ACCOUNT_ID)
+      .eq('account_id', activeAccountId)
       .order('created_at', { ascending: true })
 
     if (error) {
@@ -42,28 +78,40 @@ export default function SavingsPots() {
   }
 
   useEffect(() => {
-    fetchPots()
+    const initialize = async () => {
+      const account = await getSavingsAccount()
+
+      if (!account) return
+
+      setSavingsAccount(account)
+      await fetchPots(account.id)
+    }
+
+    initialize()
   }, [])
 
   const addPot = async (e: React.FormEvent) => {
     e.preventDefault()
+
     if (!name.trim()) return
+    if (!savingsAccount) return
 
     setLoading(true)
 
     const {
       data: { user },
+      error: userError,
     } = await supabase.auth.getUser()
 
-    if (!user) {
-      console.error('Geen gebruiker ingelogd')
+    if (userError || !user) {
+      console.error(userError)
       setLoading(false)
       return
     }
 
     const { error } = await supabase.from('savings_pots').insert({
       user_id: user.id,
-      account_id: ACCOUNT_ID,
+      account_id: savingsAccount.id,
       name: name.trim(),
       current_amount: currentAmount ? Number(currentAmount) : 0,
       target_amount: targetAmount ? Number(targetAmount) : null,
@@ -75,7 +123,7 @@ export default function SavingsPots() {
       setName('')
       setCurrentAmount('')
       setTargetAmount('')
-      await fetchPots()
+      await fetchPots(savingsAccount.id)
       notifyOverview()
     }
 
@@ -165,7 +213,7 @@ export default function SavingsPots() {
 
         <button
           type="submit"
-          disabled={loading}
+          disabled={loading || !savingsAccount}
           className="rounded-xl bg-black p-3 text-white disabled:opacity-50"
         >
           {loading ? 'Toevoegen...' : 'Toevoegen'}
