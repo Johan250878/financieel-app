@@ -23,7 +23,7 @@ export default function LoginPage() {
       return
     }
 
-    window.location.href = '/accounts'
+    window.location.href = '/'
   }
 
   return (
